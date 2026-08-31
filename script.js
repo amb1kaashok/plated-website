@@ -107,7 +107,8 @@ function showResults(shouldScroll = true) {
 
 function createRecipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'card';
-  card.innerHTML = `<div class="photo"><img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy"><span class="score ${recipe.score === 100 ? 'done' : ''}">${recipe.score}% match</span><button class="heart ${favourites.includes(recipe.id) ? 'saved' : ''}" aria-label="Save recipe">${favourites.includes(recipe.id) ? '♥' : '♡'}</button></div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p><b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing</p><button class="view">View recipe</button></div>`;
+  const isFavourite = favourites.includes(recipe.id);
+  card.innerHTML = `<div class="photo"><img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy"><span class="score ${recipe.score === 100 ? 'done' : ''}">${recipe.score}% match</span><button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button></div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p><b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing</p><button class="view">View recipe</button></div>`;
   card.querySelector('.heart').addEventListener('click', async () => {
     if (await toggleFavourite(recipe.id)) showResults(false);
   });
@@ -155,6 +156,30 @@ function openRecipe(recipe) {
 function closeRecipe() { elements.backdrop.hidden = true; document.body.style.overflow = ''; selectedRecipe = null; }
 function escapeHtml(value) { const node = document.createElement('div'); node.textContent = value; return node.innerHTML; }
 
+function validateNameField(shouldReport = false) {
+  const input = document.querySelector('#auth-name');
+  const value = input.value.trim();
+  const validName = /^[\p{L}\p{M}]+(?:['’\-][\p{L}\p{M}]+)*$/u;
+  input.setCustomValidity(value && !validName.test(value)
+    ? 'Enter one first name using letters only. Apostrophes and hyphens are allowed.'
+    : '');
+  input.setAttribute('aria-invalid', String(!input.validity.valid));
+  if (shouldReport && !input.validity.valid) input.reportValidity();
+  return input.validity.valid;
+}
+
+function validateEmailField(shouldReport = false) {
+  const input = document.querySelector('#auth-email');
+  const value = input.value.trim();
+  const validEmail = /^[A-Z0-9]+(?:[._+\-][A-Z0-9]+)*@[A-Z0-9]+(?:-[A-Z0-9]+)*(?:\.[A-Z0-9]+(?:-[A-Z0-9]+)*)+$/i;
+  input.setCustomValidity(value && !validEmail.test(value)
+    ? 'Enter a valid email address, for example name@example.com.'
+    : '');
+  input.setAttribute('aria-invalid', String(!input.validity.valid));
+  if (shouldReport && !input.validity.valid) input.reportValidity();
+  return input.validity.valid;
+}
+
 async function loadSavedRecipes() {
   if (!currentUser) { favourites = []; updateAccountUI(); return; }
   const { data, error } = await supabaseClient.from('saved_recipes').select('recipe_id').order('created_at', { ascending: false });
@@ -177,7 +202,7 @@ function updateAccountUI() {
   elements.userEmail.hidden = !currentUser;
   elements.logout.hidden = !currentUser;
   elements.saved.hidden = isResultsPage && savedOnly;
-  const savedName = currentUser?.user_metadata?.full_name?.trim();
+  const savedName = (currentUser?.user_metadata?.first_name || currentUser?.user_metadata?.full_name)?.trim();
   const fallbackName = currentUser?.email?.split('@')[0] || '';
   const firstName = (savedName || fallbackName).split(/\s+/)[0];
   const displayName = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : '';
@@ -191,6 +216,8 @@ function setAuthMode(mode) {
   document.querySelector('#login-tab').classList.toggle('active', !signingUp);
   document.querySelector('#signup-tab').classList.toggle('active', signingUp);
   document.querySelector('#auth-title').textContent = signingUp ? 'Create your account' : 'Welcome back';
+  document.querySelector('#full-name-row').childNodes[0].nodeValue = 'First name';
+  document.querySelector('#auth-name').placeholder = 'Your first name';
   document.querySelector('#auth-intro').textContent = signingUp ? 'Create an account to save recipes you want to cook.' : 'Log in to view all your saved recipes.';
   document.querySelector('#full-name-row').hidden = !signingUp;
   document.querySelector('#auth-name').required = signingUp;
@@ -218,6 +245,10 @@ function closeAuthModal() {
   elements.authBackdrop.hidden = true;
   document.body.style.overflow = '';
   document.querySelector('#auth-form').reset();
+  document.querySelector('#auth-name').setCustomValidity('');
+  document.querySelector('#auth-email').setCustomValidity('');
+  document.querySelector('#auth-name').removeAttribute('aria-invalid');
+  document.querySelector('#auth-email').removeAttribute('aria-invalid');
   elements.authMessage.textContent = '';
 }
 
@@ -226,9 +257,17 @@ async function handleAuthSubmit(event) {
   const email = document.querySelector('#auth-email').value.trim();
   const password = document.querySelector('#auth-password').value;
   const confirmation = document.querySelector('#auth-confirm-password').value;
-  const fullName = document.querySelector('#auth-name').value.trim();
+  const firstName = document.querySelector('#auth-name').value.trim();
   const submit = document.querySelector('#auth-submit');
   elements.authMessage.textContent = '';
+  if (authMode === 'signup' && !validateNameField(true)) {
+    elements.authMessage.textContent = 'Please correct the first name field.';
+    return;
+  }
+  if (!validateEmailField(true)) {
+    elements.authMessage.textContent = 'Please enter a valid email address.';
+    return;
+  }
   if (authMode === 'signup' && password !== confirmation) {
     elements.authMessage.textContent = 'The passwords do not match.';
     return;
@@ -236,7 +275,7 @@ async function handleAuthSubmit(event) {
   submit.disabled = true;
   submit.textContent = authMode === 'signup' ? 'Creating account…' : 'Logging in…';
   const result = authMode === 'signup'
-    ? await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}`, data: { full_name: fullName } } })
+    ? await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}`, data: { first_name: firstName, full_name: firstName } } })
     : await supabaseClient.auth.signInWithPassword({ email, password });
   submit.disabled = false;
   if (result.error) {
@@ -309,6 +348,12 @@ elements.logout.addEventListener('click', async () => { await supabaseClient.aut
 document.querySelector('#login-tab').addEventListener('click', () => setAuthMode('login'));
 document.querySelector('#signup-tab').addEventListener('click', () => setAuthMode('signup'));
 document.querySelector('#auth-form').addEventListener('submit', handleAuthSubmit);
+document.querySelector('#auth-name').setAttribute('maxlength', '60');
+document.querySelector('#auth-email').setAttribute('maxlength', '254');
+document.querySelector('#auth-name').addEventListener('input', () => validateNameField());
+document.querySelector('#auth-name').addEventListener('blur', () => validateNameField(true));
+document.querySelector('#auth-email').addEventListener('input', () => validateEmailField());
+document.querySelector('#auth-email').addEventListener('blur', () => validateEmailField(true));
 document.querySelector('#close-auth').addEventListener('click', closeAuthModal);
 document.querySelector('#auth-switch').addEventListener('click', event => {
   const mode = event.target.dataset.mode;

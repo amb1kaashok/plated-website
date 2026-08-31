@@ -30,3 +30,6 @@
 @media(max-width:640px){.how h2{font-size:52px}.how .steps{gap:55px}.how .steps span{font-size:70px}.how .steps h3{font-size:30px}.how .steps p{font-size:17px}}
 .hero{margin-bottom:100px}.finder-section{scroll-margin-top:20px}@media(max-width:900px){.hero{margin-bottom:72px}}@media(max-width:640px){.hero{margin-bottom:48px}}
 .profile-button,.logout-button{width:auto;height:auto;border:0;border-radius:999px;background:var(--lime);color:var(--green);padding:11px 22px;font-size:14px;font-weight:800;line-height:1;text-decoration:none}.profile-button:hover,.logout-button:hover{text-decoration:none!important;filter:brightness(1.04)}.user-email{max-width:none;color:var(--lime);font-size:15px;font-weight:700}@media(max-width:640px){.profile-button,.logout-button{padding:11px 20px}.user-email{display:block;max-width:100%}}
+
+/* Move the bottom paneer curry left so it overlaps the question-mark dot. */
+@media(min-width:901px){.hero-food-4{left:43%}.hero-inner>p{text-align:right}}
