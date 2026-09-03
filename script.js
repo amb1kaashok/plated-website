@@ -349,10 +349,26 @@ document.querySelector('#signup-tab').addEventListener('click', () => setAuthMod
 document.querySelector('#auth-form').addEventListener('submit', handleAuthSubmit);
 document.querySelector('#auth-name').setAttribute('maxlength', '60');
 document.querySelector('#auth-email').setAttribute('maxlength', '254');
-document.querySelector('#auth-name').addEventListener('input', () => validateNameField());
-document.querySelector('#auth-name').addEventListener('blur', () => validateNameField(true));
-document.querySelector('#auth-email').addEventListener('input', () => validateEmailField());
-document.querySelector('#auth-email').addEventListener('blur', () => validateEmailField(true));
+document.querySelector('#auth-name').addEventListener('input', () => {
+  if (validateNameField() && elements.authMessage.textContent === 'Enter a valid full name using letters, spaces, apostrophes, and hyphens only.') {
+    elements.authMessage.textContent = '';
+  }
+});
+document.querySelector('#auth-name').addEventListener('blur', event => {
+  if (event.target.value.trim() && !validateNameField()) {
+    elements.authMessage.textContent = 'Enter a valid full name using letters, spaces, apostrophes, and hyphens only.';
+  }
+});
+document.querySelector('#auth-email').addEventListener('input', () => {
+  if (validateEmailField() && elements.authMessage.textContent === 'Enter a valid email address, for example name@example.com.') {
+    elements.authMessage.textContent = '';
+  }
+});
+document.querySelector('#auth-email').addEventListener('blur', event => {
+  if (event.target.value.trim() && !validateEmailField()) {
+    elements.authMessage.textContent = 'Enter a valid email address, for example name@example.com.';
+  }
+});
 document.querySelector('#close-auth').addEventListener('click', closeAuthModal);
 document.querySelector('#auth-switch').addEventListener('click', event => {
   const mode = event.target.dataset.mode;
