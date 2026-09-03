@@ -26,8 +26,7 @@ function normalize(value) {
 }
 
 function ingredientMatches(available, required) {
-  if (available.has(required)) return true;
-  return [...available].some(item => item.length > 2 && (required.includes(item) || item.includes(required)));
+  return available.has(normalize(required));
 }
 
 async function loadDatabase() {
@@ -144,7 +143,7 @@ function openRecipe(recipe) {
   document.querySelector('#modal-missing').textContent = recipe.missing.length ? `${recipe.missing.length} ingredients missing` : 'You have everything listed';
   document.querySelector('#modal-ingredients').innerHTML = recipe.ingredients.map(item => {
     const ready = recipe.matched.some(match => match.key === item.key);
-    return `<li class="${ready ? 'ready' : ''}"><span>${ready ? '✓' : '+'}</span><div>${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small></div></li>`;
+    return `<li class="${ready ? 'ready' : ''}"><span>${ready ? '✓' : '×'}</span><div>${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small></div></li>`;
   }).join('');
   const steps = recipe.instructions.split(/\r?\n/).filter(Boolean);
   document.querySelector('#modal-instructions').innerHTML = steps.map((step, index) => `<p><span>${index + 1}</span>${escapeHtml(step)}</p>`).join('');
@@ -159,9 +158,9 @@ function escapeHtml(value) { const node = document.createElement('div'); node.te
 function validateNameField(shouldReport = false) {
   const input = document.querySelector('#auth-name');
   const value = input.value.trim();
-  const validName = /^[\p{L}\p{M}]+(?:['’\-][\p{L}\p{M}]+)*$/u;
+  const validName = /^[\p{L}\p{M}]+(?:[ '’-][\p{L}\p{M}]+)*$/u;
   input.setCustomValidity(value && !validName.test(value)
-    ? 'Enter one first name using letters only. Apostrophes and hyphens are allowed.'
+    ? 'Enter a valid full name using letters, spaces, apostrophes, and hyphens only.'
     : '');
   input.setAttribute('aria-invalid', String(!input.validity.valid));
   if (shouldReport && !input.validity.valid) input.reportValidity();
@@ -216,8 +215,8 @@ function setAuthMode(mode) {
   document.querySelector('#login-tab').classList.toggle('active', !signingUp);
   document.querySelector('#signup-tab').classList.toggle('active', signingUp);
   document.querySelector('#auth-title').textContent = signingUp ? 'Create your account' : 'Welcome back';
-  document.querySelector('#full-name-row').childNodes[0].nodeValue = 'First name';
-  document.querySelector('#auth-name').placeholder = 'Your first name';
+  document.querySelector('#full-name-row').childNodes[0].nodeValue = 'Full name';
+  document.querySelector('#auth-name').placeholder = 'Your full name';
   document.querySelector('#auth-intro').textContent = signingUp ? 'Create an account to save recipes you want to cook.' : 'Log in to view all your saved recipes.';
   document.querySelector('#full-name-row').hidden = !signingUp;
   document.querySelector('#auth-name').required = signingUp;
@@ -257,11 +256,11 @@ async function handleAuthSubmit(event) {
   const email = document.querySelector('#auth-email').value.trim();
   const password = document.querySelector('#auth-password').value;
   const confirmation = document.querySelector('#auth-confirm-password').value;
-  const firstName = document.querySelector('#auth-name').value.trim();
+  const fullName = document.querySelector('#auth-name').value.trim();
   const submit = document.querySelector('#auth-submit');
   elements.authMessage.textContent = '';
   if (authMode === 'signup' && !validateNameField(true)) {
-    elements.authMessage.textContent = 'Please correct the first name field.';
+    elements.authMessage.textContent = 'Please correct the full name field.';
     return;
   }
   if (!validateEmailField(true)) {
@@ -275,7 +274,7 @@ async function handleAuthSubmit(event) {
   submit.disabled = true;
   submit.textContent = authMode === 'signup' ? 'Creating account…' : 'Logging in…';
   const result = authMode === 'signup'
-    ? await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}`, data: { first_name: firstName, full_name: firstName } } })
+    ? await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}`, data: { first_name: fullName.split(/\s+/)[0], full_name: fullName } } })
     : await supabaseClient.auth.signInWithPassword({ email, password });
   submit.disabled = false;
   if (result.error) {
