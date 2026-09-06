@@ -36,3 +36,7 @@
 
 /* Move the bottom paneer curry left so it overlaps the question-mark dot. */
 @media(min-width:901px){.hero-food-4{left:43%}.hero-inner>p{text-align:right}}
+
+/* Keep both saved-recipe heart icons centered inside their circular buttons. */
+.heart{display:flex;align-items:center;justify-content:center;padding:0}
+.heart img,.card:hover .heart img{width:24px;height:24px;object-fit:contain;transform:none}
