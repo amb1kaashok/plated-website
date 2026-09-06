@@ -136,6 +136,7 @@ async function toggleFavourite(id) {
 
 function openRecipe(recipe) {
   selectedRecipe = recipe;
+  closeSubstitution();
   document.querySelector('#modal-photo').src = recipe.image;
   document.querySelector('#modal-meta').textContent = `${recipe.area || 'World'} · ${recipe.category || 'Recipe'}`;
   document.querySelector('#modal-title').textContent = recipe.name;
@@ -143,7 +144,7 @@ function openRecipe(recipe) {
   document.querySelector('#modal-missing').textContent = recipe.missing.length ? `${recipe.missing.length} ingredients missing` : 'You have everything listed';
   document.querySelector('#modal-ingredients').innerHTML = recipe.ingredients.map(item => {
     const ready = recipe.matched.some(match => match.key === item.key);
-    return `<li class="${ready ? 'ready' : ''}"><span>${ready ? '✓' : '×'}</span><div>${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small></div></li>`;
+    return `<li class="${ready ? 'ready' : ''}"><span>${ready ? '✓' : '×'}</span><div class="ingredient-copy">${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small>${ready ? '' : `<button class="substitute-button" type="button" data-ingredient="${escapeHtml(item.key)}">Suggest substitute</button>`}</div></li>`;
   }).join('');
   const steps = recipe.instructions.split(/\r?\n/).filter(Boolean);
   document.querySelector('#modal-instructions').innerHTML = steps.map((step, index) => `<p><span>${index + 1}</span>${escapeHtml(step)}</p>`).join('');
@@ -154,6 +155,71 @@ function openRecipe(recipe) {
 
 function closeRecipe() { elements.backdrop.hidden = true; document.body.style.overflow = ''; selectedRecipe = null; }
 function escapeHtml(value) { const node = document.createElement('div'); node.textContent = value; return node.innerHTML; }
+
+function closeSubstitution() {
+  const panel = document.querySelector('#ai-substitution-panel');
+  if (!panel) return;
+  panel.hidden = true;
+  document.querySelector('#ai-substitution-result').innerHTML = '';
+}
+
+function renderSubstitution(data) {
+  const result = document.querySelector('#ai-substitution-result');
+  result.innerHTML = '';
+  const title = document.createElement('h4');
+  title.textContent = data.substitute;
+  result.append(title);
+  [
+    ['Quantity', data.quantity],
+    ['How to use it', data.instructions],
+    ['Suitability', data.suitability],
+    ['Important', data.warning]
+  ].forEach(([label, value]) => {
+    const paragraph = document.createElement('p');
+    const strong = document.createElement('strong');
+    strong.textContent = `${label}: `;
+    paragraph.append(strong, document.createTextNode(value));
+    result.append(paragraph);
+  });
+}
+
+async function requestSubstitution(ingredientKey, button) {
+  if (!currentUser) {
+    openAuthModal('login', 'Log in to request AI ingredient substitutions.');
+    return;
+  }
+  const ingredient = selectedRecipe?.ingredients.find(item => item.key === ingredientKey);
+  if (!ingredient || !selectedRecipe) return;
+  const panel = document.querySelector('#ai-substitution-panel');
+  const result = document.querySelector('#ai-substitution-result');
+  panel.hidden = false;
+  result.innerHTML = '<p class="ai-loading">Finding a suitable substitute…</p>';
+  button.disabled = true;
+  button.textContent = 'Thinking…';
+  try {
+    const { data, error } = await supabaseClient.functions.invoke('suggest-substitution', {
+      body: {
+        recipeName: selectedRecipe.name,
+        missingIngredient: ingredient.name,
+        measure: ingredient.measure || 'As needed',
+        recipeIngredients: selectedRecipe.ingredients.map(item => item.name).slice(0, 30),
+        dietaryPreferences: [],
+        allergens: []
+      }
+    });
+    if (error) throw error;
+    if (!data?.substitute || !data?.quantity || !data?.instructions || !data?.suitability || !data?.warning) {
+      throw new Error('The substitution response was incomplete.');
+    }
+    renderSubstitution(data);
+  } catch (error) {
+    console.error('Could not generate a substitution:', error);
+    result.innerHTML = '<p class="ai-error">A substitution could not be generated right now. Please try again shortly.</p>';
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Suggest substitute';
+  }
+}
 
 function validateNameField(shouldReport = false) {
   const input = document.querySelector('#auth-name');
@@ -342,6 +408,11 @@ document.querySelector('#modal-save').addEventListener('click', async () => {
     document.querySelector('#modal-save').textContent = favourites.includes(selectedRecipe.id) ? 'Remove from saved' : 'Save this recipe';
   }
 });
+document.querySelector('#modal-ingredients').addEventListener('click', event => {
+  const button = event.target.closest('.substitute-button');
+  if (button) requestSubstitution(button.dataset.ingredient, button);
+});
+document.querySelector('#close-substitution').addEventListener('click', closeSubstitution);
 elements.account.addEventListener('click', () => openAuthModal('login'));
 elements.logout.addEventListener('click', async () => { await supabaseClient.auth.signOut(); savedOnly = false; });
 document.querySelector('#login-tab').addEventListener('click', () => setAuthMode('login'));
