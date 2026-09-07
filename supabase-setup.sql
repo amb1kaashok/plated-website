@@ -27,6 +27,41 @@ using ((select auth.uid()) = user_id);
 
 grant select, insert, delete on public.saved_recipes to authenticated;
 
+-- =========================
+-- DIETARY AND ALLERGY PROFILES
+-- =========================
+
+create table if not exists public.user_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  primary_diet text not null default 'none'
+    check (primary_diet in ('none', 'vegetarian', 'vegan', 'pescatarian')),
+  dietary_requirements text[] not null default '{}',
+  allergens text[] not null default '{}',
+  excluded_ingredients text[] not null default '{}',
+  onboarding_complete boolean not null default false,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_preferences enable row level security;
+
+drop policy if exists "Users can view their own preferences" on public.user_preferences;
+create policy "Users can view their own preferences"
+on public.user_preferences for select to authenticated
+using ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can create their own preferences" on public.user_preferences;
+create policy "Users can create their own preferences"
+on public.user_preferences for insert to authenticated
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can update their own preferences" on public.user_preferences;
+create policy "Users can update their own preferences"
+on public.user_preferences for update to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+grant select, insert, update on public.user_preferences to authenticated;
+
 
 -- =========================
 -- USER CREATED RECIPES

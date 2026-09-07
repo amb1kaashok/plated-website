@@ -10,6 +10,27 @@ let selectedRecipe = null;
 let currentUser = null;
 let authMode = 'login';
 let communityRecipesCache = [];
+let userPreferences = { primaryDiet: 'none', dietaryRequirements: [], allergens: [], excludedIngredients: [], onboardingComplete: false };
+let preferenceFilterEnabled = sessionStorage.getItem('plated-preference-filter') !== 'false';
+
+const allergenLabels = {
+  peanuts: 'Peanuts', tree_nuts: 'Tree nuts', milk: 'Milk', eggs: 'Eggs', soy: 'Soy',
+  wheat: 'Wheat', fish: 'Fish', shellfish: 'Shellfish', sesame: 'Sesame'
+};
+
+const allergenRules = {
+  peanuts: ['peanut', 'groundnut'],
+  tree_nuts: ['nuts', 'almond', 'cashew', 'walnut', 'pecan', 'pistachio', 'hazelnut', 'macadamia', 'brazil nut', 'pine nut', 'mixed nuts', 'marzipan', 'praline'],
+  milk: ['milk', 'butter', 'cheese', 'cream', 'yoghurt', 'yogurt', 'ghee', 'whey', 'casein', 'paneer', 'mascarpone', 'ricotta', 'mozzarella', 'parmesan', 'cheddar', 'custard'],
+  eggs: ['egg', 'eggs', 'mayonnaise', 'meringue'],
+  soy: ['soy', 'soya', 'tofu', 'tempeh', 'miso', 'edamame'],
+  wheat: ['wheat', 'flour', 'plain flour', 'all purpose flour', 'self raising flour', 'bread flour', 'white flour', 'wholemeal flour', 'semolina', 'couscous', 'breadcrumbs', 'bread crumbs', 'bread', 'pasta', 'spaghetti', 'macaroni', 'lasagne', 'noodle', 'tortilla'],
+  fish: ['fish', 'salmon', 'tuna', 'cod', 'haddock', 'mackerel', 'sardine', 'anchovy', 'trout', 'tilapia', 'halibut', 'sea bass', 'swordfish'],
+  shellfish: ['shrimp', 'prawn', 'crab', 'lobster', 'crayfish', 'mussel', 'oyster', 'scallop', 'clam', 'squid', 'octopus'],
+  sesame: ['sesame', 'tahini']
+};
+
+const meatRules = ['meat', 'meatball', 'beef', 'chicken', 'pork', 'lamb', 'mutton', 'goat', 'turkey', 'duck', 'rabbit', 'bacon', 'ham', 'sausage', 'prosciutto', 'salami', 'chorizo', 'veal', 'venison', 'liver', 'gelatin', 'gelatine', 'lard', 'minced meat', 'ground meat'];
 
 function mysteryStorageKey() {
   return `plated-mystery-${currentUser?.id || 'guest'}`;
@@ -180,6 +201,53 @@ function ingredientMatches(available, required) {
   return available.has(normalize(required));
 }
 
+function containsIngredientPhrase(value, phrase) {
+  const ingredient = ` ${normalize(value)} `;
+  const target = normalize(phrase);
+  return ingredient.includes(` ${target} `) || ingredient.includes(` ${target}s `) || ingredient.includes(` ${target}es `);
+}
+
+function getIngredientAllergens(ingredient) {
+  const normalizedIngredient = normalize(ingredient);
+  const nonDairyUses = ['coconut milk', 'almond milk', 'soy milk', 'oat milk', 'rice milk', 'peanut butter', 'almond butter', 'cashew butter', 'cocoa butter', 'butter beans'];
+  const nonWheatFlours = ['almond flour', 'rice flour', 'corn flour', 'cornflour', 'coconut flour', 'chickpea flour', 'gram flour', 'potato flour'];
+  return Object.entries(allergenRules)
+    .filter(([allergen, phrases]) => {
+      if (allergen === 'milk' && nonDairyUses.some(item => normalizedIngredient.includes(item))) return false;
+      if (allergen === 'wheat' && nonWheatFlours.some(item => normalizedIngredient.includes(item)) && !normalizedIngredient.includes('wheat')) return false;
+      return phrases.some(phrase => containsIngredientPhrase(ingredient, phrase));
+    })
+    .map(([allergen]) => allergen);
+}
+
+function recipeContainsAny(recipe, phrases) {
+  return (recipe.ingredients || []).some(item => phrases.some(phrase => containsIngredientPhrase(item.name || item.key, phrase)));
+}
+
+function getRecipeSafety(recipe) {
+  const detectedAllergens = [...new Set((recipe.ingredients || []).flatMap(item => getIngredientAllergens(item.name || item.key)))];
+  const excludedIngredients = userPreferences.excludedIngredients.filter(excluded =>
+    (recipe.ingredients || []).some(item => containsIngredientPhrase(item.name || item.key, excluded))
+  );
+  const conflicts = [];
+  const diet = userPreferences.primaryDiet;
+  const containsMeat = recipeContainsAny(recipe, meatRules);
+  const containsFish = recipeContainsAny(recipe, [...allergenRules.fish, ...allergenRules.shellfish]);
+  if (diet === 'vegetarian' && (containsMeat || containsFish)) conflicts.push('Vegetarian');
+  if (diet === 'pescatarian' && containsMeat) conflicts.push('Pescatarian');
+  if (diet === 'vegan' && (containsMeat || containsFish || detectedAllergens.includes('milk') || detectedAllergens.includes('eggs') || recipeContainsAny(recipe, ['honey']))) conflicts.push('Vegan');
+  if (userPreferences.dietaryRequirements.includes('gluten_free') && (detectedAllergens.includes('wheat') || recipeContainsAny(recipe, ['barley', 'rye', 'malt']))) conflicts.push('Gluten-free');
+  if (userPreferences.dietaryRequirements.includes('dairy_free') && detectedAllergens.includes('milk')) conflicts.push('Dairy-free');
+  const allergenConflicts = detectedAllergens.filter(allergen => userPreferences.allergens.includes(allergen));
+  return { detectedAllergens, allergenConflicts, excludedIngredients, conflicts };
+}
+
+function recipeMatchesProfile(recipe) {
+  if (!currentUser || !userPreferences.onboardingComplete || !preferenceFilterEnabled) return true;
+  const safety = getRecipeSafety(recipe);
+  return !safety.conflicts.length && !safety.allergenConflicts.length && !safety.excludedIngredients.length;
+}
+
 async function loadDatabase() {
   try {
     const response = await fetch('recipes-with-nutrition.json');
@@ -263,6 +331,7 @@ function getRankedRecipes() {
   const available = new Set(ingredients.map(normalize));
   if (nutritionSearch && !savedOnly) {
     return recipes
+      .filter(recipeMatchesProfile)
       .filter(recipe => {
         const nutrition = recipe.nutritionPerServing;
         if (!nutrition) return false;
@@ -274,6 +343,7 @@ function getRankedRecipes() {
       .sort((a, b) => b.nutritionPerServing.protein - a.nutritionPerServing.protein || a.name.localeCompare(b.name));
   }
   return recipes
+    .filter(recipeMatchesProfile)
     .filter(recipe => elements.category.value === 'All' || recipe.category === elements.category.value)
     .filter(recipe => elements.area.value === 'All' || recipe.area === elements.area.value)
     .filter(recipe => !savedOnly || favourites.includes(recipe.id))
@@ -288,6 +358,7 @@ function getRankedRecipes() {
 
 function showResults(shouldScroll = true) {
   elements.results.hidden = false;
+  renderPreferenceControls();
   const ranked = getRankedRecipes();
   const visibleCount = Math.min(ranked.length, 15);
   elements.title.textContent = nutritionSearch && !savedOnly
@@ -305,12 +376,16 @@ function createRecipeCard(recipe) {
   const isCommunity = Boolean(recipe.isCommunity);
   const mysteryBadge = isCommunity ? null : getMysteryBadgeForRecipe(recipe.id);
   const isNutritionResult = Boolean(nutritionSearch && !savedOnly && recipe.nutritionPerServing);
+  const safety = getRecipeSafety(recipe);
+  const allergenWarning = safety.detectedAllergens.length
+    ? `<div class="recipe-allergen-warning"><strong>Allergen warning</strong><span>Contains: ${safety.detectedAllergens.map(allergen => escapeHtml(allergenLabels[allergen])).join(', ')}</span></div>`
+    : '';
   const badgeMarkup = mysteryBadge ? `<span class="recipe-achievement-badge" title="Mystery Challenge badge: ${escapeHtml(mysteryBadge.name)}"><span class="badge-mark" aria-hidden="true">✦</span><span class="badge-copy"><small>Mystery achievement</small><b>${escapeHtml(mysteryBadge.name)}</b></span></span>` : '';
   const heartButton = isCommunity ? '' : `<button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button>`;
   const summary = isNutritionResult
     ? `<b>${recipe.nutritionPerServing.protein}g</b> protein · <b>${recipe.nutritionPerServing.carbs}g</b> carbs · <b>${recipe.nutritionPerServing.fiber}g</b> fibre`
     : `<b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing`;
-  card.innerHTML = `<div class="photo ${recipe.image ? '' : 'no-image'}">${recipe.image ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">` : ''}${badgeMarkup}<span class="score ${recipe.score === 100 ? 'done' : ''}">${isNutritionResult ? 'Nutrition match' : `${recipe.score}% match`}</span>${heartButton}</div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p>${summary}</p>${recipe.publisher ? `<p>Published by ${escapeHtml(recipe.publisher)}</p>` : ''}<button class="view">View recipe</button></div>`;
+  card.innerHTML = `<div class="photo ${recipe.image ? '' : 'no-image'}">${recipe.image ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">` : ''}${badgeMarkup}<span class="score ${recipe.score === 100 ? 'done' : ''}">${isNutritionResult ? 'Nutrition match' : `${recipe.score}% match`}</span>${heartButton}</div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p>${summary}</p>${allergenWarning}${recipe.publisher ? `<p>Published by ${escapeHtml(recipe.publisher)}</p>` : ''}<button class="view">View recipe</button></div>`;
   if (!isCommunity) {
   card.querySelector('.heart').addEventListener('click', async () => {
     if (await toggleFavourite(recipe.id)) showResults(false);
@@ -659,7 +734,13 @@ function openRecipe(recipe) {
   document.querySelector('#modal-missing').textContent = recipe.missing.length ? `${recipe.missing.length} ingredients missing` : 'You have everything listed';
   document.querySelector('#modal-ingredients').innerHTML = recipe.ingredients.map(item => {
     const ready = recipe.matched.some(match => match.key === item.key);
-    return `<li class="${ready ? 'ready' : ''}"><span>${ready ? '✓' : '×'}</span><div class="ingredient-copy">${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small>${ready ? '' : `<button class="substitute-button" type="button" data-ingredient="${escapeHtml(item.key)}">Suggest substitute</button>`}</div></li>`;
+    const itemAllergens = getIngredientAllergens(item.name || item.key);
+    const conflictsWithProfile = itemAllergens.some(allergen => userPreferences.allergens.includes(allergen));
+    const allergenCopy = itemAllergens.length ? `<small class="ingredient-allergen-warning">Contains ${itemAllergens.map(allergen => escapeHtml(allergenLabels[allergen])).join(', ')}</small>` : '';
+    const substitutionButton = !ready || conflictsWithProfile
+      ? `<button class="substitute-button" type="button" data-ingredient="${escapeHtml(item.key)}">${conflictsWithProfile ? 'Find allergen-safe substitute' : 'Suggest substitute'}</button>`
+      : '';
+    return `<li class="${ready ? 'ready' : ''} ${conflictsWithProfile ? 'allergen-conflict' : ''}"><span>${ready ? '✓' : '×'}</span><div class="ingredient-copy">${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small>${allergenCopy}${substitutionButton}</div></li>`;
   }).join('');
   const steps = splitInstructions(recipe.instructions);
   document.querySelector('#modal-instructions').innerHTML = steps.map((step, index) =>
@@ -741,6 +822,7 @@ async function requestSubstitution(ingredientKey, button) {
   }
   const ingredient = selectedRecipe?.ingredients.find(item => item.key === ingredientKey);
   if (!ingredient || !selectedRecipe) return;
+  const isDeclaredAllergen = getIngredientAllergens(ingredient.name || ingredient.key).some(allergen => userPreferences.allergens.includes(allergen));
   const panel = document.querySelector('#ai-substitution-panel');
   const result = document.querySelector('#ai-substitution-result');
   panel.hidden = false;
@@ -752,10 +834,11 @@ async function requestSubstitution(ingredientKey, button) {
       body: {
         recipeName: selectedRecipe.name,
         missingIngredient: ingredient.name,
+        substitutionReason: isDeclaredAllergen ? 'The ingredient conflicts with the user’s declared allergy profile.' : 'The user does not have this ingredient.',
         measure: ingredient.measure || 'As needed',
         recipeIngredients: selectedRecipe.ingredients.map(item => item.name).slice(0, 30),
-        dietaryPreferences: [],
-        allergens: []
+        dietaryPreferences: [userPreferences.primaryDiet, ...userPreferences.dietaryRequirements].filter(item => item && item !== 'none'),
+        allergens: [...userPreferences.allergens.map(allergen => allergenLabels[allergen]), ...userPreferences.excludedIngredients]
       }
     });
     if (error) throw error;
@@ -825,6 +908,125 @@ function updateAccountUI() {
   const displayName = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : '';
   elements.userEmail.textContent = displayName ? `Hi, ${displayName}.` : '';
   elements.saved.textContent = `Saved (${favourites.length})`;
+}
+
+function preferenceSummary() {
+  const labels = [];
+  if (userPreferences.primaryDiet !== 'none') labels.push(userPreferences.primaryDiet.charAt(0).toUpperCase() + userPreferences.primaryDiet.slice(1));
+  if (userPreferences.dietaryRequirements.includes('gluten_free')) labels.push('Gluten-free');
+  if (userPreferences.dietaryRequirements.includes('dairy_free')) labels.push('Dairy-free');
+  labels.push(...userPreferences.allergens.map(allergen => `${allergenLabels[allergen]} allergy`));
+  if (userPreferences.excludedIngredients.length) labels.push(`${userPreferences.excludedIngredients.length} avoided ingredient${userPreferences.excludedIngredients.length === 1 ? '' : 's'}`);
+  return labels.length ? labels.join(' · ') : 'No dietary restrictions';
+}
+
+function renderPreferenceControls() {
+  const bar = document.querySelector('#preference-filter-bar');
+  if (!bar) return;
+  const available = Boolean(currentUser && userPreferences.onboardingComplete);
+  bar.hidden = !available;
+  const toggle = document.querySelector('#preference-filter-toggle');
+  if (toggle) toggle.checked = preferenceFilterEnabled;
+  const summary = document.querySelector('#active-preferences');
+  if (summary) summary.textContent = preferenceFilterEnabled ? preferenceSummary() : 'Profile filter temporarily off';
+}
+
+function populatePreferencesForm() {
+  document.querySelector('#primary-diet').value = userPreferences.primaryDiet;
+  document.querySelectorAll('[name="dietary-requirement"]').forEach(input => {
+    input.checked = userPreferences.dietaryRequirements.includes(input.value);
+  });
+  document.querySelectorAll('[name="allergen"]').forEach(input => {
+    input.checked = userPreferences.allergens.includes(input.value);
+  });
+  document.querySelector('#excluded-ingredients').value = userPreferences.excludedIngredients.join(', ');
+}
+
+function openPreferences(mode = 'profile') {
+  if (!currentUser) {
+    openAuthModal('login', 'Log in to manage your dietary profile.');
+    return;
+  }
+  populatePreferencesForm();
+  document.querySelector('#preferences-kicker').textContent = mode === 'onboarding' ? 'ONE QUICK STEP' : 'YOUR PROFILE';
+  document.querySelector('#preferences-title').textContent = mode === 'onboarding' ? 'Set up your food profile' : 'Food preferences';
+  document.querySelector('#preferences-intro').textContent = mode === 'onboarding'
+    ? 'Choose what works for you once. Plated will automatically use it for future searches.'
+    : 'Update your preferences at any time. Changes apply to every new and current search.';
+  document.querySelector('#preferences-message').textContent = '';
+  document.querySelector('#preferences-backdrop').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreferences() {
+  document.querySelector('#preferences-backdrop').hidden = true;
+  document.body.style.overflow = '';
+  document.querySelector('#preferences-message').textContent = '';
+}
+
+async function loadUserPreferences({ promptIfMissing = true } = {}) {
+  if (!currentUser) {
+    userPreferences = { primaryDiet: 'none', dietaryRequirements: [], allergens: [], excludedIngredients: [], onboardingComplete: false };
+    renderPreferenceControls();
+    return;
+  }
+  const { data, error } = await supabaseClient.from('user_preferences').select('*').eq('user_id', currentUser.id).maybeSingle();
+  if (error) {
+    console.warn('Dietary preferences are not available yet. Run the latest Supabase setup:', error.message);
+    renderPreferenceControls();
+    return;
+  }
+  if (data) {
+    userPreferences = {
+      primaryDiet: data.primary_diet || 'none',
+      dietaryRequirements: data.dietary_requirements || [],
+      allergens: data.allergens || [],
+      excludedIngredients: data.excluded_ingredients || [],
+      onboardingComplete: Boolean(data.onboarding_complete)
+    };
+  } else {
+    userPreferences = { primaryDiet: 'none', dietaryRequirements: [], allergens: [], excludedIngredients: [], onboardingComplete: false };
+  }
+  renderPreferenceControls();
+  if (elements.results && !elements.results.hidden) showResults(false);
+  if (promptIfMissing && !userPreferences.onboardingComplete) openPreferences('onboarding');
+}
+
+async function saveUserPreferences(event) {
+  event.preventDefault();
+  const submit = document.querySelector('#preferences-submit');
+  const message = document.querySelector('#preferences-message');
+  const excludedIngredients = [...new Set(document.querySelector('#excluded-ingredients').value.split(',').map(normalize).filter(Boolean))];
+  const nextPreferences = {
+    primaryDiet: document.querySelector('#primary-diet').value,
+    dietaryRequirements: [...document.querySelectorAll('[name="dietary-requirement"]:checked')].map(input => input.value),
+    allergens: [...document.querySelectorAll('[name="allergen"]:checked')].map(input => input.value),
+    excludedIngredients,
+    onboardingComplete: true
+  };
+  submit.disabled = true;
+  submit.textContent = 'Saving…';
+  const { error } = await supabaseClient.from('user_preferences').upsert({
+    user_id: currentUser.id,
+    primary_diet: nextPreferences.primaryDiet,
+    dietary_requirements: nextPreferences.dietaryRequirements,
+    allergens: nextPreferences.allergens,
+    excluded_ingredients: nextPreferences.excludedIngredients,
+    onboarding_complete: true,
+    updated_at: new Date().toISOString()
+  });
+  submit.disabled = false;
+  submit.textContent = 'Save preferences';
+  if (error) {
+    message.textContent = `Preferences could not be saved: ${error.message}`;
+    return;
+  }
+  userPreferences = nextPreferences;
+  preferenceFilterEnabled = true;
+  sessionStorage.setItem('plated-preference-filter', 'true');
+  renderPreferenceControls();
+  if (elements.results && !elements.results.hidden) showResults(false);
+  closePreferences();
 }
 
 function setAuthMode(mode) {
@@ -906,7 +1108,9 @@ async function handleAuthSubmit(event) {
     submit.textContent = 'Create account';
     return;
   }
+  currentUser = result.data.session?.user || currentUser;
   closeAuthModal();
+  if (currentUser) await loadUserPreferences({ promptIfMissing: true });
 }
 
 async function initializeAuth() {
@@ -920,6 +1124,7 @@ async function initializeAuth() {
       localStorage.removeItem('plated-mystery-guest');
     }
   }
+  await loadUserPreferences({ promptIfMissing: true });
   await loadSavedRecipes();
   updateAccountUI();
   renderMysteryUI();
@@ -928,6 +1133,7 @@ async function initializeAuth() {
     setTimeout(async () => {
       currentUser = session?.user || null;
       if (currentUser) await migrateLocalFavourites();
+      await loadUserPreferences({ promptIfMissing: true });
       await loadSavedRecipes();
       updateAccountUI();
       renderMysteryUI();
@@ -1013,7 +1219,8 @@ if (elements.passport) elements.passport.addEventListener('click', openPassport)
 document.querySelector('#close-passport').addEventListener('click', closePassport);
 document.querySelector('#passport-backdrop').addEventListener('click', event => { if (event.target === document.querySelector('#passport-backdrop')) closePassport(); });
 elements.account.addEventListener('click', () => openAuthModal('login'));
-elements.logout.addEventListener('click', async () => { await supabaseClient.auth.signOut(); savedOnly = false; });
+elements.userEmail.addEventListener('click', () => openPreferences('profile'));
+elements.logout.addEventListener('click', async () => { await supabaseClient.auth.signOut(); savedOnly = false; closePreferences(); });
 document.querySelector('#login-tab').addEventListener('click', () => setAuthMode('login'));
 document.querySelector('#signup-tab').addEventListener('click', () => setAuthMode('signup'));
 document.querySelector('#auth-form').addEventListener('submit', handleAuthSubmit);
@@ -1046,6 +1253,16 @@ document.querySelector('#auth-switch').addEventListener('click', event => {
 });
 elements.authBackdrop.addEventListener('click', event => { if (event.target === elements.authBackdrop) closeAuthModal(); });
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !elements.authBackdrop.hidden) closeAuthModal(); });
+document.querySelector('#preferences-form').addEventListener('submit', saveUserPreferences);
+document.querySelector('#close-preferences').addEventListener('click', closePreferences);
+document.querySelector('#preferences-backdrop').addEventListener('click', event => { if (event.target === document.querySelector('#preferences-backdrop')) closePreferences(); });
+document.querySelector('#preference-filter-toggle')?.addEventListener('change', event => {
+  preferenceFilterEnabled = event.target.checked;
+  sessionStorage.setItem('plated-preference-filter', String(preferenceFilterEnabled));
+  showResults(false);
+});
+document.querySelector('#edit-preferences')?.addEventListener('click', () => openPreferences('profile'));
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && !document.querySelector('#preferences-backdrop').hidden) closePreferences(); });
 
 document.querySelector('#menu-toggle').addEventListener('click', () => {
   const menu = document.querySelector('#nav-actions');

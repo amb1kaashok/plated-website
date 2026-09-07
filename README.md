@@ -56,6 +56,10 @@ Every local recipe includes estimated protein, carbohydrates, fat, fibre and sug
 
 The app stores saved recipe IDs and user-created community recipes in Supabase. Row Level Security policies in `supabase-setup.sql` ensure users can edit or delete only their own community recipes. Run the complete setup file again after adding the Community Recipes feature so its table, permissions and image bucket are created. Never replace the publishable key in `auth.js` with a secret or service-role key.
 
+The same setup file creates `user_preferences` for the dietary and allergy profile. Run the latest complete SQL file again after adding this feature. New users are prompted to choose their diet, additional requirements, allergies and avoided ingredients; signed-in users can later edit these choices by clicking their “Hi, Name” profile button. Recipe filtering uses fixed ingredient rules and is only a guide—users must still check labels and cross-contamination information.
+
 ## Enable AI ingredient substitutions
 
 Follow `AI-SETUP.md` to create a Gemini API key, store it as a private Supabase secret and deploy the Edge Function. Never put the Gemini API key in browser code or commit it to GitHub.
+
+Redeploy the `suggest-substitution` Edge Function after adding dietary profiles so allergen replacements receive the user's saved restrictions.

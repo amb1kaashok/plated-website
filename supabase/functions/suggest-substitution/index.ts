@@ -51,6 +51,7 @@ Deno.serve(async (request) => {
 
   const recipeName = String(body.recipeName || '').trim().slice(0, 160)
   const missingIngredient = String(body.missingIngredient || '').trim().slice(0, 100)
+  const substitutionReason = String(body.substitutionReason || 'The user needs an alternative ingredient.').trim().slice(0, 180)
   const measure = String(body.measure || 'As needed').trim().slice(0, 80)
   const recipeIngredients = Array.isArray(body.recipeIngredients)
     ? body.recipeIngredients.map((item: unknown) => String(item).slice(0, 80)).slice(0, 30)
@@ -69,7 +70,8 @@ Deno.serve(async (request) => {
   const prompt = `You are Plated's ingredient substitution assistant. Suggest one practical substitute for the missing ingredient.
 
 Recipe: ${recipeName}
-Missing ingredient: ${missingIngredient}
+Ingredient to replace: ${missingIngredient}
+Reason for replacement: ${substitutionReason}
 Required amount: ${measure}
 Other recipe ingredients: ${recipeIngredients.join(', ')}
 Dietary preferences: ${dietaryPreferences.length ? dietaryPreferences.join(', ') : 'None supplied'}
