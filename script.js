@@ -8,6 +8,7 @@ let savedOnly = false;
 let selectedRecipe = null;
 let currentUser = null;
 let authMode = 'login';
+let communityRecipesCache = [];
 
 function mysteryStorageKey() {
   return `plated-mystery-${currentUser?.id || 'guest'}`;
@@ -183,7 +184,37 @@ async function loadDatabase() {
     const response = await fetch('recipes.json');
     if (!response.ok) throw new Error('Database could not be loaded');
     const database = await response.json();
-    recipes = database.recipes;
+    let communityRecipes = [];
+    const { data, error: communityError } = await supabaseClient
+        .from('user_recipes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (communityError) {
+      console.warn('Community recipes are not available yet:', communityError.message);
+    } else {
+      communityRecipes = data || [];
+    }
+
+    const formattedCommunityRecipes = communityRecipes.map(recipe => ({
+      ...recipe,
+      name: recipe.recipe_name,
+      cookingTime: recipe.cooking_time,
+      mealType: recipe.meal_type,
+      area: recipe.cuisine,
+      category: recipe.meal_type,
+      image: recipe.image_url,
+      publisher: recipe.publisher_name,
+      isCommunity: true,
+      ingredients: (recipe.ingredients || []).map(item => ({
+        ...item,
+        key: normalize(item.name),
+        measure: item.quantity
+      }))
+    }));
+
+    communityRecipesCache = formattedCommunityRecipes;
+    recipes = [...database.recipes, ...formattedCommunityRecipes];
     if (elements.category) fillSelect(elements.category, recipes.map(recipe => recipe.category));
     if (elements.area) fillSelect(elements.area, recipes.map(recipe => recipe.area));
     if (isResultsPage) {
@@ -256,13 +287,23 @@ function showResults(shouldScroll = true) {
 function createRecipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'card';
   const isFavourite = favourites.includes(recipe.id);
-  const mysteryBadge = getMysteryBadgeForRecipe(recipe.id);
+  const isCommunity = Boolean(recipe.isCommunity);
+  const mysteryBadge = isCommunity ? null : getMysteryBadgeForRecipe(recipe.id);
   const badgeMarkup = mysteryBadge ? `<span class="recipe-achievement-badge" title="Mystery Challenge badge: ${escapeHtml(mysteryBadge.name)}"><span class="badge-mark" aria-hidden="true">✦</span><span class="badge-copy"><small>Mystery achievement</small><b>${escapeHtml(mysteryBadge.name)}</b></span></span>` : '';
-  card.innerHTML = `<div class="photo"><img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">${badgeMarkup}<span class="score ${recipe.score === 100 ? 'done' : ''}">${recipe.score}% match</span><button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button></div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p><b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing</p><button class="view">View recipe</button></div>`;
+  const heartButton = isCommunity ? '' : `<button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button>`;
+  card.innerHTML = `<div class="photo ${recipe.image ? '' : 'no-image'}">${recipe.image ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">` : ''}${badgeMarkup}<span class="score ${recipe.score === 100 ? 'done' : ''}">${recipe.score}% match</span>${heartButton}</div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p><b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing</p>${recipe.publisher ? `<p>Published by ${escapeHtml(recipe.publisher)}</p>` : ''}<button class="view">View recipe</button></div>`;
+  if (!isCommunity) {
   card.querySelector('.heart').addEventListener('click', async () => {
     if (await toggleFavourite(recipe.id)) showResults(false);
   });
-  card.querySelector('.view').addEventListener('click', () => openRecipe(recipe));
+  }
+  card.querySelector('.view').addEventListener('click', () => {
+  if (recipe.isCommunity) {
+    openCommunityRecipe(recipe);
+  } else {
+    openRecipe(recipe);
+  }
+});
   return card;
 }
 
@@ -837,6 +878,7 @@ async function initializeAuth() {
   await loadSavedRecipes();
   updateAccountUI();
   renderMysteryUI();
+  await displayCommunityRecipes();
   supabaseClient.auth.onAuthStateChange((_event, session) => {
     setTimeout(async () => {
       currentUser = session?.user || null;
@@ -844,6 +886,7 @@ async function initializeAuth() {
       await loadSavedRecipes();
       updateAccountUI();
       renderMysteryUI();
+      await displayCommunityRecipes();
       if (elements.results && !elements.results.hidden) showResults(false);
     }, 0);
   });
@@ -951,3 +994,524 @@ if (!isResultsPage) renderChips();
 loadDatabase();
 renderMysteryUI();
 initializeAuth();
+// =========================
+// ADD RECIPE - INGREDIENTS
+// =========================
+
+const addIngredientButton = document.querySelector('#add-ingredient');
+const ingredientsList = document.querySelector('#ingredients-list');
+
+if (addIngredientButton && ingredientsList) {
+
+    // Add a new ingredient row
+    addIngredientButton.addEventListener('click', () => {
+
+        const ingredientRow = document.createElement('div');
+
+        ingredientRow.className = 'ingredient-row';
+
+        ingredientRow.innerHTML = `
+            <input
+                type="text"
+                class="ingredient-name"
+                placeholder="Ingredient"
+                required
+            >
+
+            <input
+                type="text"
+                class="ingredient-quantity"
+                placeholder="Quantity"
+                required
+            >
+
+            <button
+                type="button"
+                class="remove-ingredient"
+            >
+                ×
+            </button>
+        `;
+
+        ingredientsList.appendChild(ingredientRow);
+    });
+
+
+    // Remove an ingredient row
+    ingredientsList.addEventListener('click', (event) => {
+
+        if (event.target.classList.contains('remove-ingredient')) {
+
+            const ingredientRow = event.target.closest('.ingredient-row');
+
+            // Keep at least one ingredient row
+            if (ingredientsList.children.length > 1) {
+                ingredientRow.remove();
+            }
+        }
+    });
+}
+
+// =========================
+// ADD RECIPE - FORM SUBMISSION
+// =========================
+
+const addRecipeForm = document.querySelector('#add-recipe-form');
+const recipeImageInput = document.querySelector('#recipe-image');
+
+function readImageAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        if (!file) {
+            resolve('');
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+
+        reader.readAsDataURL(file);
+    });
+}
+async function uploadRecipeImage(file) {
+    if (!file) return '';
+    if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
+    if (file.size > 5 * 1024 * 1024) throw new Error('Recipe images must be smaller than 5 MB.');
+
+    const fileExtension = file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    const fileName = `${currentUser.id}/${Date.now()}.${fileExtension}`;
+
+    const { error } = await supabaseClient.storage
+        .from('recipe-images')
+        .upload(fileName, file);
+
+    if (error) {
+        console.error('Image upload error:', error);
+        throw error;
+    }
+
+    const { data } = supabaseClient.storage
+        .from('recipe-images')
+        .getPublicUrl(fileName);
+
+    return data.publicUrl;
+}
+
+if (addRecipeForm) {
+    addRecipeForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!currentUser) {
+            openAuthModal('login', 'Log in to share a recipe with the Plated community.');
+            return;
+        }
+
+        const recipeName = document.querySelector('#recipe-name').value.trim();
+        const recipeImageFile = recipeImageInput.files[0];
+        const cookingTime = document.querySelector('#cooking-time').value;
+        const cuisine = document.querySelector('#recipe-cuisine').value;
+        const mealType = document.querySelector('#meal-type').value;
+        const instructions = document.querySelector('#recipe-instructions').value.trim();
+        const ingredientRows = document.querySelectorAll('.ingredient-row');
+        const ingredients = [];
+        ingredientRows.forEach((row) => {
+            const name = row.querySelector('.ingredient-name').value.trim();
+            const quantity = row.querySelector('.ingredient-quantity').value.trim();
+            if (name && quantity) {
+                ingredients.push({ name, quantity });
+            }
+        });
+
+        if (ingredients.length === 0) {
+            alert('Please add at least one ingredient.');
+            return;
+        }
+
+        const submitButton = addRecipeForm.querySelector('[type="submit"]');
+        const wasEditing = Boolean(editingRecipeId);
+        submitButton.disabled = true;
+        submitButton.textContent = wasEditing ? 'Updating recipe…' : 'Adding recipe…';
+
+        try {
+            const recipeImage = await uploadRecipeImage(recipeImageFile);
+            const publisher = currentUser.user_metadata?.first_name ||
+                currentUser.user_metadata?.full_name ||
+                currentUser.email?.split('@')[0] ||
+                'Plated cook';
+            const recipeValues = {
+                recipe_name: recipeName,
+                ingredients,
+                cooking_time: cookingTime,
+                cuisine,
+                meal_type: mealType,
+                instructions,
+                publisher_name: publisher
+            };
+
+            if (recipeImage) recipeValues.image_url = recipeImage;
+
+            const query = wasEditing
+                ? supabaseClient.from('user_recipes').update(recipeValues).eq('id', editingRecipeId).eq('user_id', currentUser.id)
+                : supabaseClient.from('user_recipes').insert({ ...recipeValues, user_id: currentUser.id });
+            const { error } = await query;
+
+            if (error) throw error;
+
+            editingRecipeId = null;
+            alert(`"${recipeName}" has been ${wasEditing ? 'updated' : 'added'} successfully!`);
+            addRecipeForm.reset();
+            document.querySelectorAll('.ingredient-row').forEach((row, index) => {
+                if (index > 0) row.remove();
+            });
+            await loadDatabase();
+            await displayCommunityRecipes();
+        } catch (error) {
+            console.error('Recipe save error:', error);
+            alert(error.message || 'Could not save the recipe. Please try again.');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Add recipe';
+        };
+    });
+}
+// Track which recipe is being edited
+let editingRecipeId = null;
+
+// =========================
+// DISPLAY COMMUNITY RECIPES
+// =========================
+
+async function displayCommunityRecipes() {
+    const recipesGrid = document.querySelector('#community-recipes-grid');
+    if (!recipesGrid) return;
+
+    const { data, error } = await supabaseClient
+        .from('user_recipes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    recipesGrid.innerHTML = '';
+
+    if (error) {
+        console.warn('Could not load community recipes:', error.message);
+        recipesGrid.innerHTML = '<p class="community-empty">Community recipes will appear after the Supabase setup is completed.</p>';
+        return;
+    }
+
+    communityRecipesCache = (data || []).map(recipe => ({
+        ...recipe,
+        name: recipe.recipe_name,
+        cookingTime: recipe.cooking_time,
+        mealType: recipe.meal_type,
+        area: recipe.cuisine,
+        category: recipe.meal_type,
+        isCommunity: true,
+        image: recipe.image_url,
+        publisher: recipe.publisher_name
+    }));
+
+    if (communityRecipesCache.length === 0) {
+        recipesGrid.innerHTML = `
+            <p class="community-empty">
+                No community recipes yet. Be the first to share one!
+            </p>
+        `;
+        return;
+    }
+
+    communityRecipesCache.forEach((recipe) => {
+        const card = document.createElement('article');
+        card.className = 'community-recipe-card';
+        const isOwner = currentUser && String(recipe.user_id) === String(currentUser.id);
+        const isSaved = favourites.includes(String(recipe.id));
+        card.innerHTML = `
+            ${recipe.image ? `<img src="${escapeHtml(recipe.image)}" class="community-recipe-image" alt="${escapeHtml(recipe.name)}">` : ''}
+            <h3>${escapeHtml(recipe.name)}</h3>
+            <div class="community-recipe-meta">
+                <span>${escapeHtml(recipe.cuisine || 'Other')}</span>
+                <span>${escapeHtml(recipe.mealType || 'Recipe')}</span>
+                <span>${escapeHtml(recipe.cookingTime || '')}</span>
+            </div>
+            <p>${(recipe.ingredients || []).length} ingredients${recipe.publisher ? ` · Published by ${escapeHtml(recipe.publisher)}` : ''}</p>
+            <button type="button" class="view-recipe-button" data-recipe-id="${recipe.id}">View recipe</button>
+            <button type="button" class="save-community-recipe-button" data-recipe-id="${recipe.id}">${isSaved ? 'Saved ✓' : 'Save recipe'}</button>
+            ${isOwner ? `<div class="community-recipe-actions"><button type="button" class="edit-recipe-button" data-recipe-id="${recipe.id}">Edit</button><button type="button" class="delete-recipe-button" data-recipe-id="${recipe.id}">Delete</button></div>` : ''}
+        `;
+        recipesGrid.appendChild(card);
+    });
+}
+
+
+// Display saved recipes when the page loads
+displayCommunityRecipes();
+
+// =========================
+// COMMUNITY RECIPE VIEWER
+// =========================
+
+const communityRecipeBackdrop = document.querySelector(
+    '#community-recipe-backdrop'
+);
+
+const communityRecipeClose = document.querySelector(
+    '#community-recipe-close'
+);
+
+const communityRecipeTitle = document.querySelector(
+    '#community-recipe-title'
+);
+
+const communityRecipeMeta = document.querySelector(
+    '#community-recipe-meta'
+);
+
+const communityRecipeIngredients = document.querySelector(
+    '#community-recipe-ingredients'
+);
+
+const communityRecipeInstructions = document.querySelector(
+    '#community-recipe-instructions'
+);
+
+
+function openCommunityRecipe(recipe) {
+
+    if (!communityRecipeBackdrop) return;
+
+    communityRecipeTitle.textContent = recipe.name;
+    const communityRecipeModal = document.querySelector('.community-recipe-modal');
+
+let recipeImageElement = communityRecipeModal.querySelector('.community-recipe-modal-image');
+
+if (!recipeImageElement) {
+    recipeImageElement = document.createElement('img');
+    recipeImageElement.className = 'community-recipe-modal-image';
+    communityRecipeModal.prepend(recipeImageElement);
+}
+
+if (recipe.image) {
+    recipeImageElement.src = recipe.image;
+    recipeImageElement.alt = recipe.name;
+    recipeImageElement.style.display = 'block';
+} else {
+    recipeImageElement.style.display = 'none';
+}
+
+    communityRecipeMeta.innerHTML = `
+        <span>${escapeHtml(recipe.cuisine || 'Other')}</span>
+        <span>${escapeHtml(recipe.mealType || 'Recipe')}</span>
+        <span>${escapeHtml(recipe.cookingTime || '')}</span>
+    `;
+
+    communityRecipeIngredients.innerHTML = '';
+
+    recipe.ingredients.forEach((ingredient) => {
+
+        const ingredientElement = document.createElement('div');
+
+        ingredientElement.className = 'community-recipe-ingredient';
+
+        ingredientElement.innerHTML = `
+            <span>${escapeHtml(ingredient.name)}</span>
+            <span>${escapeHtml(ingredient.quantity)}</span>
+        `;
+
+        communityRecipeIngredients.appendChild(ingredientElement);
+    });
+
+    communityRecipeInstructions.textContent = recipe.instructions;
+
+    communityRecipeBackdrop.hidden = false;
+}
+
+
+if (communityRecipeBackdrop) {
+
+    communityRecipeBackdrop.addEventListener('click', (event) => {
+
+        if (event.target === communityRecipeBackdrop) {
+            communityRecipeBackdrop.hidden = true;
+        }
+
+    });
+}
+
+
+if (communityRecipeClose) {
+
+    communityRecipeClose.addEventListener('click', () => {
+        communityRecipeBackdrop.hidden = true;
+    });
+
+}
+
+
+// Handle View Recipe buttons
+document.addEventListener('click', (event) => {
+
+    const button = event.target.closest('.view-recipe-button');
+
+    if (!button) return;
+
+    const recipeId = button.dataset.recipeId;
+
+    const recipe = communityRecipesCache.find(item => String(item.id) === String(recipeId));
+
+    if (recipe) {
+        openCommunityRecipe(recipe);
+    }
+
+});
+// Handle Delete Recipe buttons
+document.addEventListener('click', async (event) => {
+
+    const button = event.target.closest('.delete-recipe-button');
+
+    if (!button) return;
+    if (!currentUser) {
+        openAuthModal('login', 'Log in to manage your community recipes.');
+        return;
+    }
+
+    const recipeId = button.dataset.recipeId;
+
+    const card = button.closest('.community-recipe-card');
+
+    const recipeName =
+        card?.querySelector('h3')?.textContent || 'this recipe';
+
+    const confirmed = confirm(
+        `Are you sure you want to delete "${recipeName}"?`
+    );
+
+    if (!confirmed) return;
+
+    // Delete the recipe from Supabase
+    const { error } = await supabaseClient
+        .from('user_recipes')
+        .delete()
+        .eq('id', recipeId)
+        .eq('user_id', currentUser.id);
+
+    if (error) {
+        console.error('Recipe delete error:', error);
+        alert('Could not delete recipe from Supabase.');
+        return;
+    }
+
+    await loadDatabase();
+    await displayCommunityRecipes();
+
+    alert(`"${recipeName}" has been deleted successfully!`);
+});
+// ==============================
+// EDIT COMMUNITY RECIPE
+// ==============================
+
+document.addEventListener('click', async (event) => {
+
+    const editButton = event.target.closest('.edit-recipe-button');
+
+    if (!editButton) return;
+    if (!currentUser) {
+        openAuthModal('login', 'Log in to manage your community recipes.');
+        return;
+    }
+
+    const recipeId = editButton.dataset.recipeId;
+
+    const { data: recipe, error } = await supabaseClient
+    .from('user_recipes')
+    .select('*')
+    .eq('id', recipeId)
+    .single();
+
+if (error || !recipe) {
+    console.error('Could not load recipe for editing:', error);
+    return;
+}
+
+    if (!recipe) return;
+
+    // Remember which recipe we are editing
+    editingRecipeId = recipeId;
+
+    // Fill in the recipe name
+    document.querySelector('#recipe-name').value = recipe.recipe_name;
+
+    // Fill in cooking time
+    document.querySelector('#cooking-time').value = recipe.cooking_time;
+
+    // Fill in cuisine
+    document.querySelector('#recipe-cuisine').value = recipe.cuisine;
+
+    // Fill in meal type
+    document.querySelector('#meal-type').value = recipe.meal_type;
+
+    // Fill in instructions
+    document.querySelector('#recipe-instructions').value = recipe.instructions;
+
+    // Remove existing ingredient rows except the first
+    const ingredientsList = document.querySelector('#ingredients-list');
+
+    const ingredientRows = ingredientsList.querySelectorAll('.ingredient-row');
+
+    ingredientRows.forEach((row, index) => {
+        if (index > 0) {
+            row.remove();
+        }
+    });
+
+    // Fill in ingredients
+    const firstRow = ingredientsList.querySelector('.ingredient-row');
+
+    if (recipe.ingredients.length > 0) {
+
+        firstRow.querySelector('.ingredient-name').value =
+            recipe.ingredients[0].name;
+
+        firstRow.querySelector('.ingredient-quantity').value =
+            recipe.ingredients[0].quantity;
+
+        recipe.ingredients.slice(1).forEach((ingredient) => {
+
+            const newRow = firstRow.cloneNode(true);
+
+            newRow.querySelector('.ingredient-name').value =
+                ingredient.name;
+
+            newRow.querySelector('.ingredient-quantity').value =
+                ingredient.quantity;
+
+            ingredientsList.appendChild(newRow);
+        });
+    }
+
+    // Scroll to Add Recipe section
+    document.querySelector('#add-recipe').scrollIntoView({
+        behavior: 'smooth'
+    });
+});
+
+
+// =========================
+// SAVE COMMUNITY RECIPE
+// =========================
+
+document.addEventListener('click', async (event) => {
+
+    const button = event.target.closest('.save-community-recipe-button');
+
+    if (!button) return;
+
+    const recipeId = button.dataset.recipeId;
+
+    if (!currentUser) {
+        openAuthModal('login', 'Log in to save community recipes.');
+        return;
+    }
+
+    if (await toggleFavourite(recipeId)) {
+        button.textContent = favourites.includes(recipeId) ? 'Saved ✓' : 'Save recipe';
+    }
+});

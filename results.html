@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body class="results-page" data-page="results">
-  <header class="site-header"><nav class="nav shell" aria-label="Main navigation"><a class="brand" href="index.html" aria-label="Plated home"><img src="assets/plated-logo-light.svg" alt="Plated"></a><button class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="nav-actions"><span></span><span></span></button><div class="nav-actions" id="nav-actions"><a href="index.html#how">How it works</a><button class="nav-link" id="saved-button">Saved recipes</button><button class="nav-link passport-nav" id="passport-button" hidden>Passport</button><button class="profile-button" id="account-button">Log in</button><span class="user-email" id="user-email" hidden></span><button class="nav-link logout-button" id="logout-button" hidden>Log out</button></div></nav></header>
+  <header class="site-header"><nav class="nav shell" aria-label="Main navigation"><a class="brand" href="index.html" aria-label="Plated home"><img src="assets/plated-logo-light.svg" alt="Plated"></a><button class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="nav-actions"><span></span><span></span></button><div class="nav-actions" id="nav-actions"><a href="index.html#how">How it works</a><a href="index.html#add-recipe" class="nav-link">Add Recipe</a><a href="index.html#community-recipes" class="nav-link">Community</a><button class="nav-link" id="saved-button">Saved recipes</button><button class="nav-link passport-nav" id="passport-button" hidden>Passport</button><button class="profile-button" id="account-button">Log in</button><span class="user-email" id="user-email" hidden></span><button class="nav-link logout-button" id="logout-button" hidden>Log out</button></div></nav></header>
   <main>
     <div class="results-controls" hidden><select id="category-filter"><option>All</option></select><select id="area-filter"><option>All</option></select><select id="minimum-filter"><option value="25">25%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option></select></div>
     <section class="results" id="results" aria-live="polite"><div class="shell"><div class="results-heading"><h1 id="results-title">Recipes worth trying</h1><p>Your best matches, ranked on what you have.</p></div><div class="grid" id="recipe-grid"></div><div class="empty" id="empty-state" hidden><h3>No close matches yet</h3><p>Add a few pantry basics or lower the minimum match.</p><a href="index.html#finder">Change your search</a></div></div></section>
@@ -17,4 +17,39 @@
   <div class="backdrop" id="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="close" id="close-modal" aria-label="Close recipe">×</button><div class="recipe-visual"><img class="modal-photo" id="modal-photo" alt=""><span class="modal-match-pill" id="modal-match"></span></div><div class="modal-content"><div class="recipe-title-row"><div><span class="meta" id="modal-meta"></span><h2 id="modal-title"></h2></div><span id="modal-missing" class="missing-copy"></span><span id="modal-badge" class="mystery-badge" hidden></span></div><div class="columns"><div><h3>Ingredients</h3><ul id="modal-ingredients"></ul><section class="ai-substitution" id="ai-substitution-panel" aria-live="polite" hidden><div class="ai-substitution-heading"><span>AI substitution</span><button id="close-substitution" type="button" aria-label="Close substitution suggestion">×</button></div><div id="ai-substitution-result"></div><p class="ai-warning">AI suggestions may be inaccurate. Always check ingredient labels, dietary requirements and allergen information before cooking.</p></section></div><div><h3>Method</h3><div class="instructions" id="modal-instructions"></div></div></div><div class="modal-actions"><button class="primary" id="modal-save"></button><button class="cook-button" id="modal-cooked" type="button">Mark as cooked</button><button class="challenge-button" id="modal-challenge" type="button">Challenge</button><a id="modal-source" target="_blank" rel="noreferrer">Original recipe <img src="assets/link-icon.svg" alt=""></a></div><div class="cooked-plate" id="cooked-plate" hidden><div class="cooked-plate-heading"><span class="cooked-plate-kicker">YOUR COOKED PLATE</span><h3>How did it turn out?</h3><p>Keep a tiny record of the recipes you actually made.</p></div><div class="review-options" role="group" aria-label="Rate this cooked recipe"><button class="review-option loved" data-review="loved" type="button"><span class="review-emoji" aria-hidden="true">😍</span><span>Loved it</span></button><button class="review-option okay" data-review="okay" type="button"><span class="review-emoji" aria-hidden="true">🙂</span><span>It was okay</span></button><button class="review-option never" data-review="never" type="button"><span class="review-emoji" aria-hidden="true">😵</span><span>Never again</span></button></div><p class="review-saved" id="review-saved" role="status"></p><p class="review-feedback" id="review-feedback" role="status"></p><div class="review-save-prompt" id="review-save-prompt" hidden><strong id="review-save-question">Want to add this recipe to your Saved folder?</strong><div class="review-save-choice" id="review-save-choice"><button class="review-save-button yes" id="review-save-yes" type="button">Yes</button><button class="review-save-button no" id="review-save-no" type="button">No</button></div></div></div></section></div>
   <div class="backdrop passport-backdrop" id="passport-backdrop" hidden><section class="passport-card" role="dialog" aria-modal="true" aria-labelledby="passport-title"><button class="close passport-close" id="close-passport" aria-label="Close passport">×</button><div class="passport-cover"><div class="passport-cover-mark"><span>PLATED</span><small>CULINARY PASSPORT</small></div><div class="passport-cover-copy"><span class="passport-kicker">YOUR CULINARY JOURNEY</span><h2 id="passport-title">Recipe Passport</h2><p>Three recipes from a cuisine unlock its stamp.</p></div><div class="passport-cover-line"></div></div><div class="passport-content"><div class="passport-summary"><div><span class="passport-label">Cuisines unlocked</span><strong id="passport-unlocked">0</strong></div><div><span class="passport-label">Recipes cooked</span><strong id="passport-cooked">0</strong></div><div class="passport-rule"><span>03</span><small>recipes to<br>unlock</small></div></div><div class="passport-section-heading"><span>COLLECTED CUISINES</span><i></i><span id="passport-progress-note">Keep cooking to fill your passport.</span></div><div class="passport-stamps" id="passport-stamps"></div></div></section></div>
   <div class="backdrop auth-backdrop" id="auth-backdrop" hidden><section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button class="close auth-close" id="close-auth" aria-label="Close account window">×</button><img class="auth-logo" src="assets/plated-logo-dark.svg" alt="Plated"><h2 id="auth-title">Welcome back</h2><p class="auth-intro" id="auth-intro">Log in to view all your saved recipes.</p><div class="auth-tabs" role="tablist"><button class="active" id="login-tab" role="tab">Log in</button><button id="signup-tab" role="tab">Create account</button></div><form id="auth-form"><label id="full-name-row" hidden>Full name<input id="auth-name" type="text" autocomplete="name" placeholder="Your full name"></label><label>Email address<input id="auth-email" type="email" autocomplete="email" required placeholder="name@email.com"></label><label>Password<input id="auth-password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"></label><label id="confirm-password-row" hidden>Confirm password<input id="auth-confirm-password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter your password again"></label><label class="remember-row" id="remember-row"><input type="checkbox" checked><span>Remember me</span></label><p class="auth-message" id="auth-message" role="status"></p><button class="primary auth-submit" id="auth-submit" type="submit">Log in</button></form><p class="auth-switch" id="auth-switch">Don’t have an account? <button type="button" data-mode="signup">Create account</button></p></section></div>
+<!-- Community Recipe Modal -->
+<div class="backdrop" id="community-recipe-backdrop" hidden>
+    <section class="community-recipe-modal" role="dialog" aria-modal="true">
+
+        <button
+            type="button"
+            class="community-recipe-close"
+            id="community-recipe-close"
+        >
+            ×
+        </button>
+
+        <p class="section-number">COMMUNITY RECIPE</p>
+
+        <h2 id="community-recipe-title"></h2>
+
+        <div class="community-recipe-modal-meta" id="community-recipe-meta">
+        </div>
+
+        <div class="community-recipe-details">
+
+            <div>
+                <h3>INGREDIENTS</h3>
+                <div id="community-recipe-ingredients"></div>
+            </div>
+
+            <div>
+                <h3>INSTRUCTIONS</h3>
+                <p id="community-recipe-instructions"></p>
+            </div>
+
+        </div>
+
+    </section>
+</div>
 </body></html>

@@ -7,7 +7,7 @@ This is the framework-free version of the recipe matching app. It uses only:
 - `script.js` for database loading, ingredient matching, filtering, cards, favourites and recipe details
 - `auth.js` for the browser-safe Supabase connection
 - `recipes.json` as the local recipe database
-- `supabase-setup.sql` for the protected cloud favourites table
+- `supabase-setup.sql` for protected saved recipes, community recipes and recipe images
 - `supabase/functions/suggest-substitution` for secure Gemini-powered ingredient substitutions
 - `AI-SETUP.md` for the one-time Gemini and Supabase deployment steps
 
@@ -50,7 +50,7 @@ Recipe data is provided by [TheMealDB](https://www.themealdb.com/).
 5. Add `http://127.0.0.1:5500/**` under Redirect URLs. If Live Server uses another port, add that address too.
 6. Keep email confirmation enabled. New users will receive a confirmation email before their first login.
 
-The app stores only the logged-in user's recipe IDs in Supabase. Row Level Security policies in `supabase-setup.sql` prevent users from viewing or changing another user's saved recipes. Never replace the publishable key in `auth.js` with a secret or service-role key.
+The app stores saved recipe IDs and user-created community recipes in Supabase. Row Level Security policies in `supabase-setup.sql` ensure users can edit or delete only their own community recipes. Run the complete setup file again after adding the Community Recipes feature so its table, permissions and image bucket are created. Never replace the publishable key in `auth.js` with a secret or service-role key.
 
 ## Enable AI ingredient substitutions
 

@@ -14,7 +14,10 @@
   <header class="site-header" id="top"><nav class="nav shell" aria-label="Main navigation">
     <a class="brand" href="#top" aria-label="Plated home"><img src="assets/plated-logo-light.svg" alt="Plated"></a>
     <button class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="nav-actions"><span></span><span></span></button>
-    <div class="nav-actions" id="nav-actions"><a href="#how">How it works</a><button class="nav-link" id="saved-button">Saved recipes</button><button class="nav-link passport-nav" id="passport-button" hidden>Passport</button><button class="profile-button" id="account-button">Log in</button><span class="user-email" id="user-email" hidden></span><button class="nav-link logout-button" id="logout-button" hidden>Log out</button></div>
+    <div class="nav-actions" id="nav-actions"><a href="#how">How it works</a>
+      <a href="#add-recipe" class="nav-link">Add Recipe</a>
+      <a href="#community-recipes" class="nav-link">Community</a>
+      <button class="nav-link" id="saved-button">Saved recipes</button><button class="nav-link passport-nav" id="passport-button" hidden>Passport</button><button class="profile-button" id="account-button">Log in</button><span class="user-email" id="user-email" hidden></span><button class="nav-link logout-button" id="logout-button" hidden>Log out</button></div>
   </nav></header>
   <main>
     <section class="hero">
@@ -31,7 +34,180 @@
     </div></section>
     <section class="mystery-section" id="mystery"><div class="shell"><div class="mystery-card"><div class="mystery-heading"><div><span class="mystery-kicker">NOT SURE WHAT TO COOK?</span><h2>Mystery dish</h2><p>Get one small cooking challenge and see where the ingredients you already have take you.</p></div></div><div class="mystery-result" id="mystery-result" aria-live="polite"><span class="mystery-label">YOUR CHALLENGE</span><strong id="mystery-challenge">Tap below to reveal one.</strong><span id="mystery-detail">Every challenge stays focused on finding and cooking a recipe in PLATED.</span></div><div class="mystery-actions"><button class="primary mystery-button" id="mystery-button" type="button">Reveal a challenge</button><button class="mystery-go-recipe" id="mystery-go-recipe" type="button" hidden>Go to recipe</button><button class="mystery-complete" id="mystery-complete" type="button" hidden>I completed it</button></div></div></div></section>
     <section class="how" id="how"><div class="shell"><h2>From random ingredients to dinner</h2><div class="steps"><article><span>01</span><h3>Add what you have</h3><p>Type the ingredients already in your kitchen.</p></article><article><span>02</span><h3>Choose what fits</h3><p>Narrow by recipe type, cuisine, and match level.</p></article><article><span>03</span><h3>Cook your best match</h3><p>See what is ready, what is missing, and every cooking step.</p></article></div></div></section>
-  </main>
+  <section class="add-recipe-section" id="add-recipe">
+    <div class="shell">
+        <div class="add-recipe-heading">
+            <p class="section-number">02</p>
+            <h2>Add your recipe</h2>
+            <p>Share a recipe with the Plated community.</p>
+        </div>
+
+        <form class="add-recipe-form" id="add-recipe-form">
+
+            <div class="form-group">
+                <label for="recipe-name">Recipe name</label>
+                <input
+                    type="text"
+                    id="recipe-name"
+                    placeholder="e.g. Creamy Garlic Pasta"
+                    required
+                >
+            </div>
+            <div class="form-group">
+    <label for="recipe-image">Recipe photo</label>
+    <input
+        type="file"
+        id="recipe-image"
+        accept="image/*"
+    >
+</div>
+
+            <div class="form-group">
+                <label>Ingredients</label>
+
+                <div id="ingredients-list">
+                    <div class="ingredient-row">
+                        <input
+                            type="text"
+                            class="ingredient-name"
+                            placeholder="Ingredient"
+                            required
+                        >
+
+                        <input
+                            type="text"
+                            class="ingredient-quantity"
+                            placeholder="Quantity"
+                            required
+                        >
+
+                        <button type="button" class="remove-ingredient">
+                            ×
+                        </button>
+                    </div>
+                </div>
+
+                <button type="button" id="add-ingredient" class="secondary-button">
+                    + Add ingredient
+                </button>
+            </div>
+
+            <div class="form-row">
+
+                <div class="form-group">
+                    <label for="cooking-time">Cooking time</label>
+
+                    <select id="cooking-time" required>
+                        <option value="">Select time</option>
+                        <option value="Under 15 minutes">Under 15 minutes</option>
+                        <option value="15–30 minutes">15–30 minutes</option>
+                        <option value="30–60 minutes">30–60 minutes</option>
+                        <option value="Over 1 hour">Over 1 hour</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="recipe-cuisine">Cuisine</label>
+
+                    <select id="recipe-cuisine" required>
+                        <option value="">Select cuisine</option>
+                        <option value="Indian">Indian</option>
+                        <option value="Italian">Italian</option>
+                        <option value="Chinese">Chinese</option>
+                        <option value="Mexican">Mexican</option>
+                        <option value="Japanese">Japanese</option>
+                        <option value="Thai">Thai</option>
+                        <option value="British">British</option>
+                        <option value="American">American</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="form-group">
+                <label for="meal-type">Meal type</label>
+
+                <select id="meal-type" required>
+                    <option value="">Select meal type</option>
+                    <option value="Breakfast">Breakfast</option>
+                    <option value="Lunch">Lunch</option>
+                    <option value="Dinner">Dinner</option>
+                    <option value="Dessert">Dessert</option>
+                    <option value="Side">Side</option>
+                    <option value="Snack">Snack</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="recipe-instructions">Cooking instructions</label>
+
+                <textarea
+                    id="recipe-instructions"
+                    rows="6"
+                    placeholder="Tell us how to make your recipe..."
+                    required
+                ></textarea>
+            </div>
+
+            <button type="submit" class="primary-button">
+                Add recipe
+            </button>
+
+        </form>
+    </div>
+</section>
+  <section class="community-recipes-section" id="community-recipes">
+    <div class="shell">
+
+        <div class="community-recipes-heading">
+            <p class="section-number">03</p>
+            <h2>Community Recipes</h2>
+            <p>Discover recipes shared by the Plated community.</p>
+        </div>
+
+        <div class="community-recipes-grid" id="community-recipes-grid">
+            <!-- User-created recipes will appear here -->
+        </div>
+
+    </div>
+</section>
+</main>
+<!-- Community Recipe Modal -->
+<div class="backdrop" id="community-recipe-backdrop" hidden>
+    <section class="community-recipe-modal" role="dialog" aria-modal="true">
+
+        <button
+            type="button"
+            class="community-recipe-close"
+            id="community-recipe-close"
+        >
+            ×
+        </button>
+
+        <p class="section-number">COMMUNITY RECIPE</p>
+
+        <h2 id="community-recipe-title"></h2>
+
+        <div class="community-recipe-modal-meta" id="community-recipe-meta">
+        </div>
+
+        <div class="community-recipe-details">
+
+            <div>
+                <h3>INGREDIENTS</h3>
+                <div id="community-recipe-ingredients"></div>
+            </div>
+
+            <div>
+                <h3>INSTRUCTIONS</h3>
+                <p id="community-recipe-instructions"></p>
+            </div>
+
+        </div>
+
+    </section>
+</div>
   <footer class="footer"><div class="shell footer-inner"><a href="#top"><img src="assets/plated-logo-dark.svg" alt="Plated"></a><p>Recipe data provided by <a href="https://www.themealdb.com/" target="_blank" rel="noreferrer">TheMealDB</a>.</p></div></footer>
   <div class="backdrop" id="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="close" id="close-modal" aria-label="Close recipe">×</button><div class="recipe-visual"><img class="modal-photo" id="modal-photo" alt=""><span class="modal-match-pill" id="modal-match"></span></div><div class="modal-content"><div class="recipe-title-row"><div><span class="meta" id="modal-meta"></span><h2 id="modal-title"></h2></div><span id="modal-missing" class="missing-copy"></span><span id="modal-badge" class="mystery-badge" hidden></span></div><div class="columns"><div><h3>Ingredients</h3><ul id="modal-ingredients"></ul><section class="ai-substitution" id="ai-substitution-panel" aria-live="polite" hidden><div class="ai-substitution-heading"><span>AI substitution</span><button id="close-substitution" type="button" aria-label="Close substitution suggestion">×</button></div><div id="ai-substitution-result"></div><p class="ai-warning">AI suggestions may be inaccurate. Always check ingredient labels, dietary requirements and allergen information before cooking.</p></section></div><div><h3>Method</h3><div class="instructions" id="modal-instructions"></div></div></div><div class="modal-actions"><button class="primary" id="modal-save"></button><button class="cook-button" id="modal-cooked" type="button">Mark as cooked</button><button class="challenge-button" id="modal-challenge" type="button">Challenge</button><a id="modal-source" target="_blank" rel="noreferrer">Original recipe <img src="assets/link-icon.svg" alt=""></a></div><div class="cooked-plate" id="cooked-plate" hidden><div class="cooked-plate-heading"><span class="cooked-plate-kicker">YOUR COOKED PLATE</span><h3>How did it turn out?</h3><p>Keep a tiny record of the recipes you actually made.</p></div><div class="review-options" role="group" aria-label="Rate this cooked recipe"><button class="review-option loved" data-review="loved" type="button"><span class="review-emoji" aria-hidden="true">😍</span><span>Loved it</span></button><button class="review-option okay" data-review="okay" type="button"><span class="review-emoji" aria-hidden="true">🙂</span><span>It was okay</span></button><button class="review-option never" data-review="never" type="button"><span class="review-emoji" aria-hidden="true">😵</span><span>Never again</span></button></div><p class="review-saved" id="review-saved" role="status"></p><p class="review-feedback" id="review-feedback" role="status"></p><div class="review-save-prompt" id="review-save-prompt" hidden><strong id="review-save-question">Want to add this recipe to your Saved folder?</strong><div class="review-save-choice" id="review-save-choice"><button class="review-save-button yes" id="review-save-yes" type="button">Yes</button><button class="review-save-button no" id="review-save-no" type="button">No</button></div></div></div></section></div>
   <div class="backdrop passport-backdrop" id="passport-backdrop" hidden><section class="passport-card" role="dialog" aria-modal="true" aria-labelledby="passport-title"><button class="close passport-close" id="close-passport" aria-label="Close passport">×</button><div class="passport-cover"><div class="passport-cover-mark"><span>PLATED</span><small>CULINARY PASSPORT</small></div><div class="passport-cover-copy"><span class="passport-kicker">YOUR CULINARY JOURNEY</span><h2 id="passport-title">Recipe Passport</h2><p>Three recipes from a cuisine unlock its stamp.</p></div><div class="passport-cover-line"></div></div><div class="passport-content"><div class="passport-summary"><div><span class="passport-label">Cuisines unlocked</span><strong id="passport-unlocked">0</strong></div><div><span class="passport-label">Recipes cooked</span><strong id="passport-cooked">0</strong></div><div class="passport-rule"><span>03</span><small>recipes to<br>unlock</small></div></div><div class="passport-section-heading"><span>COLLECTED CUISINES</span><i></i><span id="passport-progress-note">Keep cooking to fill your passport.</span></div><div class="passport-stamps" id="passport-stamps"></div></div></section></div>
