@@ -9,12 +9,161 @@ let selectedRecipe = null;
 let currentUser = null;
 let authMode = 'login';
 
+function mysteryStorageKey() {
+  return `plated-mystery-${currentUser?.id || 'guest'}`;
+}
+
+function getMysteryState() {
+  try {
+    return JSON.parse(localStorage.getItem(mysteryStorageKey()) || 'null');
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveMysteryState(state) {
+  localStorage.setItem(mysteryStorageKey(), JSON.stringify(state));
+}
+
+function getMysteryBadges() {
+  if (!currentUser) return [];
+  try {
+    return JSON.parse(localStorage.getItem(`plated-mystery-badges-${currentUser.id}`) || '[]');
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveMysteryBadges(badges) {
+  if (!currentUser) return;
+  localStorage.setItem(`plated-mystery-badges-${currentUser.id}`, JSON.stringify(badges));
+}
+
+const mysteryBadgeNames = [
+  'Cuisine Explorer', 'Ingredient Tactician', 'Best Match', 'Category Breaker',
+  'Curious Cook', 'Green Plate', 'Passport Pioneer', 'Precision Cook',
+  'Off-Menu Chef', 'Nothing Wasted'
+];
+
+function getMysteryBadgeForRecipe(recipeId) {
+  if (!currentUser) return null;
+  const badges = getMysteryBadges();
+  return badges.find(badge => String(badge.recipeId) === String(recipeId)) || null;
+}
+
+function scoreRecipe(recipe) {
+  const available = new Set(ingredients.map(normalize));
+  const matched = recipe.ingredients.filter(item => ingredientMatches(available, item.key));
+  const missing = recipe.ingredients.filter(item => !ingredientMatches(available, item.key));
+  return { ...recipe, matched, missing, score: recipe.ingredients.length ? Math.round(matched.length / recipe.ingredients.length * 100) : 0 };
+}
+
+function chooseMysteryRecipe(challengeIndex) {
+  const ranked = getRankedRecipes();
+  const pool = ranked.length ? ranked : recipes.map(scoreRecipe).filter(Boolean);
+  if (!pool.length) return null;
+  const cooked = getCookedIds();
+  const cookedAreas = new Set(cooked.map(id => recipes.find(r => String(r.id) === String(id))?.area).filter(Boolean));
+  let candidates = pool;
+  if (challengeIndex === 0 || challengeIndex === 6) {
+    candidates = pool.filter(recipe => !cookedAreas.has(recipe.area));
+  } else if (challengeIndex === 1) {
+    candidates = pool.filter(recipe => recipe.matched.length >= 3);
+  } else if (challengeIndex === 4) {
+    candidates = pool.filter(recipe => recipe.matched.length >= 1);
+  } else if (challengeIndex === 5) {
+    candidates = pool.filter(recipe => /vegetarian/i.test(`${recipe.category || ''} ${recipe.name || ''} ${recipe.tags || ''}`));
+  } else if (challengeIndex === 7) {
+    candidates = pool.filter(recipe => recipe.missing.length === 1);
+  } else if (challengeIndex === 9) {
+    candidates = pool.filter(recipe => recipe.score === 100);
+  }
+  if (!candidates.length) candidates = pool;
+  if (challengeIndex === 2) return candidates[0];
+  return candidates[Math.floor(Math.random() * Math.min(candidates.length, 8))];
+}
+
+function renderMysteryUI() {
+  const state = getMysteryState();
+  const challengeNode = document.querySelector('#mystery-challenge');
+  const detailNode = document.querySelector('#mystery-detail');
+  const completeButton = document.querySelector('#mystery-complete');
+  const goButton = document.querySelector('#mystery-go-recipe');
+  if (!challengeNode || !detailNode || !completeButton) return;
+  if (!state || state.completed) {
+    completeButton.hidden = true;
+    if (goButton) goButton.hidden = true;
+    return;
+  }
+  completeButton.hidden = false;
+  const ready = Boolean(state.recipeId && hasCooked(state.recipeId));
+  completeButton.disabled = !ready;
+  completeButton.textContent = ready ? 'I completed it' : 'I completed it';
+  if (goButton) goButton.hidden = !state.recipeId;
+}
+
+function showMysteryBadge(recipe) {
+  const node = document.querySelector('#modal-badge');
+  if (!node) return;
+  const badge = getMysteryBadgeForRecipe(recipe.id);
+  if (badge) {
+    node.hidden = false;
+    node.textContent = `Badge · ${badge.name}`;
+  } else {
+    node.hidden = true;
+    node.textContent = '';
+  }
+}
+
+function updateChallengeButton(recipe) {
+  const button = document.querySelector('#modal-challenge');
+  if (!button) return;
+  const state = getMysteryState();
+  const selected = state && state.recipeId && String(state.recipeId) === String(recipe.id) && !state.completed;
+  button.textContent = selected ? 'Challenge selected' : 'Challenge';
+  button.classList.toggle('is-selected', Boolean(selected));
+  button.disabled = Boolean(state?.completed && String(state.recipeId) === String(recipe.id));
+}
+
+function selectChallengeRecipe(recipe) {
+  const state = getMysteryState();
+  if (!state || state.completed) {
+    alert('Reveal a Mystery Challenge first.');
+    return;
+  }
+  saveMysteryState({ ...state, recipeId: String(recipe.id), challengeSelected: true, completed: false });
+  updateChallengeButton(recipe);
+  renderMysteryUI();
+}
+
+function goToMysteryRecipe() {
+  const state = getMysteryState();
+  if (!state?.recipeId) return;
+  const raw = recipes.find(recipe => String(recipe.id) === String(state.recipeId));
+  if (!raw) return;
+  openRecipe(scoreRecipe(raw));
+}
+
+const mysteryChallenges = [
+  { title: 'Cook a cuisine you have never tried.', detail: 'Choose a cuisine you have not cooked before and find a recipe using ingredients you already have.' },
+  { title: 'Find a recipe using at least three ingredients you have.', detail: 'Add three or more ingredients to PLATED and choose a recipe that makes good use of them.' },
+  { title: 'Cook your highest-match recipe.', detail: 'Find the recipe with the strongest ingredient match and give it a go.' },
+  { title: 'Cook outside your usual meal category.', detail: 'Use PLATED to choose a recipe from a meal category you do not usually make.' },
+  { title: 'Cook a recipe with an ingredient you rarely use.', detail: 'Pick one less-familiar ingredient from your kitchen and see what PLATED can turn it into.' },
+  { title: 'Cook a vegetarian recipe.', detail: 'Find a vegetarian recipe that works with the ingredients you already have.' },
+  { title: 'Try a recipe from a cuisine you have not unlocked.', detail: 'Choose a cuisine outside your current Passport collection and cook one recipe from it.' },
+  { title: 'Find a recipe where you are missing only one ingredient.', detail: 'Aim for a strong match and choose a recipe that needs just one extra ingredient.' },
+  { title: 'Cook a different kind of meal than you usually make.', detail: 'Use PLATED’s meal category to choose something outside your normal routine.' },
+  { title: 'Make dinner using only what you already have.', detail: 'Aim for a 100% ingredient match and cook a recipe without adding anything new.' }
+];
+
 const elements = {
   input: document.querySelector('#ingredient-input'), chips: document.querySelector('#ingredient-chips'),
   category: document.querySelector('#category-filter'), area: document.querySelector('#area-filter'),
   minimum: document.querySelector('#minimum-filter'), results: document.querySelector('#results'),
   title: document.querySelector('#results-title'), grid: document.querySelector('#recipe-grid'),
   empty: document.querySelector('#empty-state'), saved: document.querySelector('#saved-button'),
+  passport: document.querySelector('#passport-button'),
   backdrop: document.querySelector('#modal-backdrop'), authBackdrop: document.querySelector('#auth-backdrop'),
   account: document.querySelector('#account-button'), logout: document.querySelector('#logout-button'),
   userEmail: document.querySelector('#user-email'), authMessage: document.querySelector('#auth-message')
@@ -107,7 +256,9 @@ function showResults(shouldScroll = true) {
 function createRecipeCard(recipe) {
   const card = document.createElement('article'); card.className = 'card';
   const isFavourite = favourites.includes(recipe.id);
-  card.innerHTML = `<div class="photo"><img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy"><span class="score ${recipe.score === 100 ? 'done' : ''}">${recipe.score}% match</span><button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button></div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p><b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing</p><button class="view">View recipe</button></div>`;
+  const mysteryBadge = getMysteryBadgeForRecipe(recipe.id);
+  const badgeMarkup = mysteryBadge ? `<span class="recipe-achievement-badge" title="Mystery Challenge badge: ${escapeHtml(mysteryBadge.name)}"><span class="badge-mark" aria-hidden="true">✦</span><span class="badge-copy"><small>Mystery achievement</small><b>${escapeHtml(mysteryBadge.name)}</b></span></span>` : '';
+  card.innerHTML = `<div class="photo"><img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">${badgeMarkup}<span class="score ${recipe.score === 100 ? 'done' : ''}">${recipe.score}% match</span><button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button></div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p><b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing</p><button class="view">View recipe</button></div>`;
   card.querySelector('.heart').addEventListener('click', async () => {
     if (await toggleFavourite(recipe.id)) showResults(false);
   });
@@ -134,6 +285,310 @@ async function toggleFavourite(id) {
   return true;
 }
 
+function splitInstructions(instructions) {
+  const cleaned = String(instructions || '').replace(/\s+/g, ' ').trim();
+  const marked = cleaned.split(/(?=step\s*\d+\s+)/i).map(step => step.trim()).filter(Boolean);
+  return marked.length ? marked : String(instructions || '').split(/\r?\n/).map(step => step.trim()).filter(Boolean);
+}
+
+function getCookedIds() {
+  if (!currentUser) return [];
+  try { return JSON.parse(localStorage.getItem(`plated-cooked-${currentUser.id}`) || '[]'); } catch (_) { return []; }
+}
+
+function saveCookedIds(ids) {
+  if (!currentUser) return;
+  localStorage.setItem(`plated-cooked-${currentUser.id}`, JSON.stringify([...new Set(ids)]));
+}
+
+function hasCooked(recipeId) {
+  return getCookedIds().includes(String(recipeId));
+}
+
+function getReviewKey(recipeId) { return `plated-review-${currentUser?.id || 'guest'}-${recipeId}`; }
+function getRecipeReview(recipeId) {
+  if (!currentUser) return null;
+  return localStorage.getItem(getReviewKey(recipeId));
+}
+function saveRecipeReview(recipeId, review) {
+  if (!currentUser) return;
+  if (review) localStorage.setItem(getReviewKey(recipeId), review);
+  else localStorage.removeItem(getReviewKey(recipeId));
+}
+function renderCookedPlate(recipe) {
+  const plate = document.querySelector('#cooked-plate');
+  if (!plate) return;
+  const cooked = hasCooked(recipe.id);
+  plate.hidden = !cooked;
+  if (!cooked) return;
+  const review = getRecipeReview(recipe.id);
+  document.querySelectorAll('.review-option').forEach(button => {
+    button.classList.toggle('selected', button.dataset.review === review);
+    button.setAttribute('aria-pressed', button.dataset.review === review ? 'true' : 'false');
+  });
+  const saved = document.querySelector('#review-saved');
+  if (saved) {
+    saved.textContent = review ? ({
+      loved: 'Saved to your Cooked Plate.',
+      okay: 'Saved to your Cooked Plate.',
+      never: 'Saved to your Cooked Plate.'
+    }[review] || '') : '';
+  }
+  const feedback = document.querySelector('#review-feedback');
+  if (feedback) feedback.textContent = '';
+  const savePrompt = document.querySelector('#review-save-prompt');
+  if (savePrompt) savePrompt.hidden = review !== 'loved';
+  const saveQuestion = document.querySelector('#review-save-question');
+  if (saveQuestion) saveQuestion.hidden = review !== 'loved';
+  const saveChoice = document.querySelector('#review-save-choice');
+  if (saveChoice) saveChoice.hidden = review !== 'loved';
+}
+
+function showReviewResponse(review, recipe) {
+  const feedback = document.querySelector('#review-feedback');
+  if (!feedback) return;
+  const messages = {
+    loved: 'Wow, that’s wonderful, Chef! You found a dish worth keeping.',
+    okay: 'It always gets better with practice, Chef. Keep cooking and keep experimenting.',
+    never: 'Uh oh, Chef! Better luck next time — not every recipe can be a winner.'
+  };
+  feedback.textContent = messages[review] || '';
+  feedback.className = `review-feedback ${review}`;
+
+  const savePrompt = document.querySelector('#review-save-prompt');
+  const saveQuestion = document.querySelector('#review-save-question');
+  const saveChoice = document.querySelector('#review-save-choice');
+  if (review === 'loved') {
+    if (savePrompt) savePrompt.hidden = false;
+    if (saveQuestion) saveQuestion.hidden = false;
+    if (saveChoice) saveChoice.hidden = false;
+  } else {
+    if (savePrompt) savePrompt.hidden = true;
+    if (saveQuestion) saveQuestion.hidden = true;
+    if (saveChoice) saveChoice.hidden = true;
+  }
+}
+
+function chooseReview(review) {
+  if (!selectedRecipe || !currentUser || !hasCooked(selectedRecipe.id)) return;
+  saveRecipeReview(selectedRecipe.id, review);
+  document.querySelectorAll('.review-option').forEach(button => {
+    const selected = button.dataset.review === review;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+  showReviewResponse(review, selectedRecipe);
+}
+
+async function handleReviewSaveChoice(save) {
+  if (!selectedRecipe || !currentUser) return;
+  const feedback = document.querySelector('#review-feedback');
+  const choice = document.querySelector('#review-save-choice');
+  const question = document.querySelector('#review-save-question');
+  const saved = document.querySelector('#review-saved');
+  if (save) {
+    const alreadySaved = favourites.includes(selectedRecipe.id);
+    const success = alreadySaved ? true : await toggleFavourite(selectedRecipe.id);
+    if (success) {
+      if (question) question.hidden = true;
+      if (choice) choice.hidden = true;
+      if (feedback) feedback.textContent = alreadySaved
+        ? 'It’s already saved, Chef. Good choice.'
+        : 'Great choice, Chef! It’s safely tucked into your Saved recipes.';
+      if (saved) saved.textContent = 'Saved to your Saved recipes.';
+    }
+  } else {
+    if (question) question.hidden = true;
+    if (choice) choice.hidden = true;
+    if (feedback) feedback.textContent = 'That’s okay, maybe later, Chef.';
+  }
+}
+
+function toggleRecipeCooked(recipe) {
+  if (!currentUser) {
+    openAuthModal('login', 'Log in to record cooked recipes and build your passport.');
+    return false;
+  }
+
+  const recipeId = String(recipe.id);
+  const ids = getCookedIds();
+  const index = ids.indexOf(recipeId);
+
+  if (index >= 0) {
+    // Removing the cooked mark also removes its Cooked Plate review.
+    ids.splice(index, 1);
+    saveRecipeReview(recipeId, null);
+  } else {
+    ids.push(recipeId);
+  }
+
+  saveCookedIds(ids);
+  updateCookedButton(recipe);
+  renderCookedPlate(recipe);
+  renderPassport();
+  renderMysteryUI();
+  updateChallengeButton(recipe);
+  return true;
+}
+
+function updateCookedButton(recipe) {
+  const button = document.querySelector('#modal-cooked');
+  if (!button) return;
+  const cooked = hasCooked(recipe.id);
+  button.textContent = cooked ? 'Remove cooked mark' : 'Mark as cooked';
+  button.classList.toggle('is-cooked', cooked);
+  button.setAttribute('aria-pressed', cooked ? 'true' : 'false');
+}
+
+function openPassport() {
+  if (!currentUser) {
+    openAuthModal('login', 'Log in to build your recipe passport.');
+    return;
+  }
+  renderPassport();
+  document.querySelector('#passport-backdrop').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closePassport() {
+  document.querySelector('#passport-backdrop').hidden = true;
+  document.body.style.overflow = '';
+}
+
+const passportStyles = {
+  'Algerian': ['#0b7a3b', '#d8b24c', 'ALG'],
+  'Argentina': ['#4b9fd8', '#d6b45b', 'ARG'],
+  'Australian': ['#173f8a', '#d8b24c', 'AUS'],
+  'Brazilian': ['#1d7d4b', '#d4aa3a', 'BRA'],
+  'British': ['#b13a3a', '#234b83', 'GBR'],
+  'Canadian': ['#b52b32', '#d9d1c2', 'CAN'],
+  'Chinese': ['#c62828', '#d8aa3d', 'CHN'],
+  'Croatian': ['#b7373f', '#234b83', 'CRO'],
+  'Egyptian': ['#c28a2c', '#202020', 'EGY'],
+  'Filipino': ['#2d65a4', '#c83d42', 'PHL'],
+  'French': ['#244f8f', '#b73b46', 'FRA'],
+  'Greek': ['#2e6ea5', '#d9d1c2', 'GRC'],
+  'Indian': ['#d97825', '#2f7d4f', 'IND'],
+  'Irish': ['#2f7b4f', '#d8a832', 'IRL'],
+  'Italian': ['#2e7b51', '#b83b42', 'ITA'],
+  'Jamaican': ['#2f7d4f', '#d5b13f', 'JAM'],
+  'Japanese': ['#bd3b45', '#d9d1c2', 'JPN'],
+  'Kenyan': ['#1e1e1e', '#b73b43', 'KEN'],
+  'Malaysian': ['#b63a42', '#d9bd42', 'MYS'],
+  'Mexican': ['#2f7d4f', '#b63a42', 'MEX'],
+  'Moroccan': ['#b5363e', '#d3ad45', 'MAR'],
+  'Norway': ['#b63b45', '#234b83', 'NOR'],
+  'Polish': ['#b63b45', '#d9d1c2', 'POL'],
+  'Portuguese': ['#2f7d4f', '#b83b43', 'PRT'],
+  'Russian': ['#2c5d8e', '#b63b45', 'RUS'],
+  'Saudi Arabian': ['#2f7d4f', '#d9d1c2', 'SAU'],
+  'Slovakia': ['#2f5c8c', '#b83b45', 'SVK'],
+  'Spanish': ['#bd3d3d', '#d7ad38', 'ESP'],
+  'Syrian': ['#2f7d4f', '#b83b45', 'SYR'],
+  'Thai': ['#4f3f86', '#b83b45', 'THA'],
+  'Tunisian': ['#b83b43', '#d9d1c2', 'TUN'],
+  'Turkish': ['#b83b43', '#d9d1c2', 'TUR'],
+  'Ukrainian': ['#d5ad36', '#2e68a0', 'UKR'],
+  'United States': ['#b63b43', '#2f5f92', 'USA'],
+  'Uruguayan': ['#4f94c5', '#d7b43d', 'URY'],
+  'Venezuelan': ['#d6ad3b', '#2d6e9f', 'VEN'],
+  'Vietnamese': ['#b83b43', '#d7b03d', 'VNM'],
+  'Dutch': ['#b83b43', '#e0a738', 'NLD'],
+  'Netherlands': ['#b83b43', '#e0a738', 'NLD'],
+  'Russian': ['#2e5f90', '#b83b43', 'RUS'],
+  'Japanese': ['#bd3b45', '#d9d1c2', 'JPN'],
+};
+
+function getPassportStyle(cuisine) {
+  const style = passportStyles[cuisine] || ['#1f3d19', '#8b7d64', cuisine.slice(0,3).toUpperCase()];
+  return `--stamp-ink:${style[0]};--stamp-accent:${style[1]};`;
+}
+
+function renderPassport() {
+  const cookedIds = getCookedIds();
+  const cookedRecipes = cookedIds.map(id => recipes.find(recipe => String(recipe.id) === String(id))).filter(Boolean);
+  const counts = cookedRecipes.reduce((map, recipe) => {
+    const area = recipe.area || 'Other';
+    map[area] = (map[area] || 0) + 1;
+    return map;
+  }, {});
+  const cuisines = [...new Set(recipes.map(recipe => recipe.area).filter(Boolean))].sort();
+  const unlocked = cuisines.filter(cuisine => (counts[cuisine] || 0) >= 3).length;
+  const unlockedNode = document.querySelector('#passport-unlocked');
+  const cookedNode = document.querySelector('#passport-cooked');
+  const noteNode = document.querySelector('#passport-progress-note');
+  const stamps = document.querySelector('#passport-stamps');
+  if (!stamps) return;
+  unlockedNode.textContent = unlocked;
+  cookedNode.textContent = cookedRecipes.length;
+  if (noteNode) noteNode.textContent = unlocked ? `${unlocked} ${unlocked === 1 ? 'cuisine' : 'cuisines'} stamped. Keep exploring.` : 'Cook three recipes from a cuisine to earn its stamp.';
+  stamps.innerHTML = cuisines.map((cuisine, index) => {
+    const count = counts[cuisine] || 0;
+    const isUnlocked = count >= 3;
+    const progress = Math.min(count, 3);
+    const stampClass = isUnlocked ? 'unlocked' : 'locked';
+    const stampStyle = getPassportStyle(cuisine);
+    const tilt = [-1.8, 1.2, -0.8, 1.7, -1.1][index % 5];
+    const countryCode = passportStyles[cuisine]?.[2] || cuisine.slice(0,3).toUpperCase();
+    return `<article class="passport-stamp ${stampClass}" style="${stampStyle}--stamp-tilt:${tilt}deg"><div class="stamp-border"><div class="stamp-top"><span class="stamp-country">${escapeHtml(cuisine)}</span><span class="stamp-count">${count}/3</span></div><div class="stamp-seal"><span>${escapeHtml(countryCode)}</span></div><div class="stamp-location">PLATED · ${escapeHtml(cuisine.toUpperCase())}</div><div class="stamp-rule"></div><span class="stamp-status">${isUnlocked ? 'STAMPED · CUISINE UNLOCKED' : `${3 - progress} more recipe${3 - progress === 1 ? '' : 's'} to unlock`}</span></div></article>`;
+  }).join('');
+}
+
+function revealMysteryChallenge() {
+  const challengeNode = document.querySelector('#mystery-challenge');
+  const detailNode = document.querySelector('#mystery-detail');
+  const result = document.querySelector('#mystery-result');
+  if (!challengeNode || !detailNode) return;
+  const previous = Number(localStorage.getItem('plated-last-mystery-challenge'));
+  let next = Math.floor(Math.random() * mysteryChallenges.length);
+  if (mysteryChallenges.length > 1 && Number.isInteger(previous) && next === previous) {
+    next = (next + 1 + Math.floor(Math.random() * (mysteryChallenges.length - 1))) % mysteryChallenges.length;
+  }
+  localStorage.setItem('plated-last-mystery-challenge', String(next));
+  const challenge = mysteryChallenges[next];
+  const recipe = chooseMysteryRecipe(next);
+  const state = { challengeIndex: next, recipeId: recipe ? String(recipe.id) : null, challengeSelected: false, completed: false, createdAt: Date.now() };
+  saveMysteryState(state);
+  challengeNode.textContent = challenge.title;
+  detailNode.textContent = challenge.detail;
+  if (result) result.classList.add('has-challenge');
+  const goButton = document.querySelector('#mystery-go-recipe');
+  if (goButton) goButton.hidden = !recipe;
+  renderMysteryUI();
+}
+
+function completeMysteryChallenge() {
+  if (!currentUser) {
+    openAuthModal('login', 'Log in to complete a Mystery Challenge and earn your badge.');
+    return;
+  }
+  const state = getMysteryState();
+  const challengeNode = document.querySelector('#mystery-challenge');
+  const detailNode = document.querySelector('#mystery-detail');
+  const completeButton = document.querySelector('#mystery-complete');
+  if (!state || state.completed || !state.recipeId || !state.challengeSelected) return;
+  if (!hasCooked(state.recipeId)) {
+    renderMysteryUI();
+    return;
+  }
+  const rawRecipe = recipes.find(recipe => String(recipe.id) === String(state.recipeId));
+  if (!rawRecipe) return;
+  const badges = getMysteryBadges();
+  const badgeName = mysteryBadgeNames[state.challengeIndex] || 'Mystery Chef';
+  if (!badges.some(badge => String(badge.recipeId) === String(state.recipeId) && badge.challengeIndex === state.challengeIndex)) {
+    badges.push({ recipeId: String(state.recipeId), challengeIndex: state.challengeIndex, name: badgeName, earnedAt: Date.now() });
+    saveMysteryBadges(badges);
+  }
+  saveMysteryState({ ...state, completed: true, completedAt: Date.now() });
+  if (completeButton) {
+    completeButton.hidden = false;
+    completeButton.disabled = true;
+    completeButton.textContent = 'Challenge completed';
+  }
+  if (challengeNode) challengeNode.textContent = 'Challenge complete!';
+  if (detailNode) detailNode.textContent = `Excellent work, Chef. You earned the “${badgeName}” badge on ${rawRecipe.name}.`;
+}
+
 function openRecipe(recipe) {
   selectedRecipe = recipe;
   closeSubstitution();
@@ -146,9 +601,19 @@ function openRecipe(recipe) {
     const ready = recipe.matched.some(match => match.key === item.key);
     return `<li class="${ready ? 'ready' : ''}"><span>${ready ? '✓' : '×'}</span><div class="ingredient-copy">${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small>${ready ? '' : `<button class="substitute-button" type="button" data-ingredient="${escapeHtml(item.key)}">Suggest substitute</button>`}</div></li>`;
   }).join('');
-  const steps = recipe.instructions.split(/\r?\n/).filter(Boolean);
-  document.querySelector('#modal-instructions').innerHTML = steps.map((step, index) => `<p><span>${index + 1}</span>${escapeHtml(step)}</p>`).join('');
+  const steps = splitInstructions(recipe.instructions);
+  document.querySelector('#modal-instructions').innerHTML = steps.map((step, index) =>
+    `<div class="instruction-row"><p class="instruction-copy"><span class="step-number">${index + 1}</span>${escapeHtml(step.replace(/^step\s*\d+\s*/i, ''))}</p></div>`
+  ).join('');
   document.querySelector('#modal-source').href = recipe.source || recipe.mealDbUrl;
+  showMysteryBadge(recipe);
+  updateChallengeButton(recipe);
+  const cookedButton = document.querySelector('#modal-cooked');
+  const cooked = hasCooked(recipe.id);
+  cookedButton.textContent = cooked ? 'Remove cooked mark' : 'Mark as cooked';
+  cookedButton.classList.toggle('is-cooked', cooked);
+  cookedButton.setAttribute('aria-pressed', cooked ? 'true' : 'false');
+  renderCookedPlate(recipe);
   document.querySelector('#modal-save').textContent = favourites.includes(recipe.id) ? 'Remove from saved' : 'Save this recipe';
   elements.backdrop.hidden = false; document.body.style.overflow = 'hidden';
 }
@@ -266,6 +731,7 @@ function updateAccountUI() {
   elements.account.hidden = Boolean(currentUser);
   elements.userEmail.hidden = !currentUser;
   elements.logout.hidden = !currentUser;
+  if (elements.passport) elements.passport.hidden = !currentUser;
   elements.saved.hidden = isResultsPage && savedOnly;
   const savedName = (currentUser?.user_metadata?.first_name || currentUser?.user_metadata?.full_name)?.trim();
   const fallbackName = currentUser?.email?.split('@')[0] || '';
@@ -360,14 +826,24 @@ async function handleAuthSubmit(event) {
 async function initializeAuth() {
   const { data } = await supabaseClient.auth.getSession();
   currentUser = data.session?.user || null;
-  if (currentUser) await migrateLocalFavourites();
+  if (currentUser) {
+    await migrateLocalFavourites();
+    const guestMystery = localStorage.getItem('plated-mystery-guest');
+    if (guestMystery && !localStorage.getItem(mysteryStorageKey())) {
+      localStorage.setItem(mysteryStorageKey(), guestMystery);
+      localStorage.removeItem('plated-mystery-guest');
+    }
+  }
   await loadSavedRecipes();
   updateAccountUI();
+  renderMysteryUI();
   supabaseClient.auth.onAuthStateChange((_event, session) => {
     setTimeout(async () => {
       currentUser = session?.user || null;
       if (currentUser) await migrateLocalFavourites();
       await loadSavedRecipes();
+      updateAccountUI();
+      renderMysteryUI();
       if (elements.results && !elements.results.hidden) showResults(false);
     }, 0);
   });
@@ -400,6 +876,15 @@ elements.saved.addEventListener('click', () => {
   sessionStorage.setItem('plated-saved-only', String(savedOnly));
   updateAccountUI(); showResults();
 });
+document.querySelectorAll('.review-option').forEach(button => {
+  button.addEventListener('click', () => chooseReview(button.dataset.review));
+});
+document.querySelector('#review-save-yes')?.addEventListener('click', () => handleReviewSaveChoice(true));
+document.querySelector('#review-save-no')?.addEventListener('click', () => handleReviewSaveChoice(false));
+document.querySelector('#mystery-button')?.addEventListener('click', revealMysteryChallenge);
+document.querySelector('#mystery-complete')?.addEventListener('click', completeMysteryChallenge);
+document.querySelector('#mystery-go-recipe')?.addEventListener('click', goToMysteryRecipe);
+document.querySelector('#modal-challenge')?.addEventListener('click', () => { if (selectedRecipe) selectChallengeRecipe(selectedRecipe); });
 document.querySelector('#close-modal').addEventListener('click', closeRecipe);
 elements.backdrop.addEventListener('click', event => { if (event.target === elements.backdrop) closeRecipe(); });
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !elements.backdrop.hidden) closeRecipe(); });
@@ -413,6 +898,10 @@ document.querySelector('#modal-ingredients').addEventListener('click', event => 
   if (button) requestSubstitution(button.dataset.ingredient, button);
 });
 document.querySelector('#close-substitution').addEventListener('click', closeSubstitution);
+document.querySelector('#modal-cooked').addEventListener('click', () => { if (selectedRecipe) toggleRecipeCooked(selectedRecipe); });
+if (elements.passport) elements.passport.addEventListener('click', openPassport);
+document.querySelector('#close-passport').addEventListener('click', closePassport);
+document.querySelector('#passport-backdrop').addEventListener('click', event => { if (event.target === document.querySelector('#passport-backdrop')) closePassport(); });
 elements.account.addEventListener('click', () => openAuthModal('login'));
 elements.logout.addEventListener('click', async () => { await supabaseClient.auth.signOut(); savedOnly = false; });
 document.querySelector('#login-tab').addEventListener('click', () => setAuthMode('login'));
@@ -460,4 +949,5 @@ document.querySelectorAll('#nav-actions a, #nav-actions button').forEach(item =>
 
 if (!isResultsPage) renderChips();
 loadDatabase();
+renderMysteryUI();
 initializeAuth();

@@ -36,7 +36,132 @@
 
 /* Move the bottom paneer curry left so it overlaps the question-mark dot. */
 @media(min-width:901px){.hero-food-4{left:43%}.hero-inner>p{text-align:right}}
-
 /* Keep both saved-recipe heart icons centered inside their circular buttons. */
 .heart{display:flex;align-items:center;justify-content:center;padding:0}
 .heart img,.card:hover .heart img{width:24px;height:24px;object-fit:contain;transform:none}
+
+/* Passport — modern PLATED take on a collected travel document. */
+.passport-backdrop{background:rgba(7,18,6,.84);display:grid;place-items:center;padding:22px}
+.passport-card{position:relative;width:min(1120px,100%);max-height:92vh;overflow:auto;background:var(--cream);color:var(--green);border-radius:26px;box-shadow:0 28px 90px rgba(0,0,0,.28)}
+.passport-close{background:var(--cream);color:var(--green)}
+.passport-cover{position:relative;min-height:300px;background:var(--green);color:var(--lime);padding:38px 48px 42px;overflow:hidden;border-radius:26px 26px 0 0;display:flex;flex-direction:column;justify-content:space-between}
+.passport-cover::after{content:'';position:absolute;inset:18px;border:1px solid rgba(232,239,109,.26);pointer-events:none}
+.passport-cover-mark{position:relative;z-index:1;width:112px;height:112px;border:1px solid rgba(232,239,109,.55);border-radius:50%;display:grid;place-items:center;text-align:center;align-content:center;gap:4px;transform:rotate(-5deg)}
+.passport-cover-mark::before{content:'';position:absolute;inset:8px;border:1px dashed rgba(232,239,109,.4);border-radius:50%}
+.passport-cover-mark span{font-family:Koulen,Impact,sans-serif;font-size:26px;line-height:.9}
+.passport-cover-mark small{font-size:7px;letter-spacing:.16em;font-weight:800}
+.passport-cover-copy{position:relative;z-index:1;max-width:720px;margin-top:28px}
+.passport-kicker{display:block;font-size:10px;font-weight:800;letter-spacing:.18em;margin-bottom:16px}
+.passport-cover h2{font-size:clamp(58px,8vw,104px);max-width:760px}
+.passport-cover p{max-width:480px;font-size:15px;line-height:1.5;margin:18px 0 0;color:var(--cream)}
+.passport-cover-line{position:absolute;right:58px;bottom:48px;width:170px;height:1px;background:rgba(232,239,109,.4)}
+.passport-content{padding:34px 44px 50px;background-color:var(--cream);background-image:repeating-linear-gradient(0deg,transparent 0,transparent 31px,rgba(31,61,25,.035) 32px)}
+.passport-summary{display:grid;grid-template-columns:auto auto 1fr;gap:42px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:25px;margin-bottom:28px}
+.passport-summary>div{display:grid;gap:5px}
+.passport-label{text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.12em;opacity:.6}
+.passport-summary strong{font-family:Koulen,Impact,sans-serif;font-size:42px;font-weight:400;line-height:1}
+.passport-rule{justify-self:end;display:flex!important;align-items:center;gap:10px!important;opacity:.75}
+.passport-rule span{font-family:Koulen,Impact,sans-serif;font-size:26px;line-height:1}
+.passport-rule small{font-size:9px;line-height:1.15;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.passport-section-heading{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;margin-bottom:22px;font-size:9px;letter-spacing:.12em;font-weight:800}
+.passport-section-heading i{height:1px;background:var(--line);opacity:.6}
+.passport-section-heading span:last-child{font-size:9px;font-weight:600;letter-spacing:.02em;text-transform:none;opacity:.6}
+.passport-stamps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px 20px}
+.passport-stamp{min-height:175px;padding:8px;position:relative;transform:rotate(var(--stamp-tilt));transition:transform .2s ease,opacity .2s ease}
+.passport-stamp:hover{transform:rotate(0deg) translateY(-2px)}
+.passport-stamp .stamp-border{height:100%;min-height:159px;border:2px solid var(--stamp-ink);padding:16px 17px 14px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;color:var(--stamp-ink);background:rgba(250,249,232,.68)}
+.passport-stamp .stamp-border::before{content:'';position:absolute;inset:5px;border:1px dashed var(--stamp-ink);opacity:.65;pointer-events:none}
+.passport-stamp .stamp-border::after{content:'';position:absolute;left:-20%;right:-20%;top:52%;height:1px;background:var(--stamp-accent);opacity:.5;transform:rotate(-7deg);pointer-events:none}
+.passport-stamp.unlocked .stamp-border{border-color:var(--stamp-ink);border-style:double}
+.passport-stamp.unlocked .stamp-border::before{opacity:.85}
+.passport-stamp.locked{opacity:.34;filter:grayscale(1)}
+.stamp-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:start;gap:10px}
+.stamp-country{font-family:Koulen,Impact,sans-serif;font-size:28px;line-height:.95;text-transform:uppercase;max-width:75%}
+.stamp-count{font-size:10px;font-weight:800;letter-spacing:.06em}
+.stamp-seal{position:absolute;right:16px;top:52px;width:58px;height:58px;border:2px solid var(--stamp-ink);border-radius:50%;display:grid;place-items:center;transform:rotate(8deg);opacity:.88}
+.stamp-seal::before{content:'';position:absolute;inset:5px;border:1px dashed var(--stamp-accent);border-radius:50%}
+.stamp-seal span{font-size:10px;font-weight:900;letter-spacing:.08em}
+.stamp-location{position:relative;z-index:1;font-size:8px;font-weight:900;letter-spacing:.11em;margin-top:18px;max-width:70%}
+.stamp-rule{position:relative;z-index:1;width:58px;height:3px;background:var(--stamp-accent);margin:7px 0}
+.stamp-status{position:relative;z-index:1;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.passport-stamp.unlocked .stamp-status{color:var(--stamp-ink)}
+.passport-stamp.unlocked .stamp-count{color:var(--stamp-accent)}
+
+@media(max-width:900px){
+  .passport-stamps{grid-template-columns:repeat(2,1fr)}
+  .passport-cover{min-height:280px}
+}
+@media(max-width:640px){
+  .passport-backdrop{padding:0}
+  .passport-card{width:100%;max-height:100vh;min-height:100vh;border-radius:0}
+  .passport-cover{min-height:330px;border-radius:0;padding:30px 22px 34px}
+  .passport-cover::after{inset:12px}
+  .passport-cover-mark{width:88px;height:88px}
+  .passport-cover-mark span{font-size:21px}
+  .passport-cover-mark small{font-size:6px}
+  .passport-cover-line{right:24px;bottom:34px;width:90px}
+  .passport-content{padding:27px 18px 38px}
+  .passport-summary{grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
+  .passport-rule{display:none!important}
+  .passport-section-heading{grid-template-columns:1fr;gap:8px}
+  .passport-section-heading i{display:none}
+  .passport-stamps{grid-template-columns:1fr;gap:16px}
+  .passport-stamp{min-height:160px}
+  .passport-stamp .stamp-border{min-height:144px}
+  .instruction-row{gap:10px;flex-direction:column}
+  .modal-actions{gap:12px}
+}
+
+/* Cooked Plate + Mystery Dish */
+.cooked-plate{margin-top:22px;padding:22px 0 4px;border-top:1px solid var(--line)}
+.cooked-plate-heading{margin-bottom:14px}
+.cooked-plate-kicker,.mystery-kicker{display:block;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;opacity:.65}
+.cooked-plate-heading h3{margin:6px 0 3px;font-size:22px}
+.cooked-plate-heading p{margin:0;font-size:13px;opacity:.65}
+.review-options{display:flex;gap:9px;flex-wrap:wrap}
+.review-option{border:1px solid var(--line);background:var(--cream);color:var(--green);border-radius:999px;padding:9px 13px;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;cursor:pointer;transition:.18s ease}
+.review-emoji{font-size:16px;line-height:1}
+.review-option.loved{border-color:#5d9467;color:#35633e}
+.review-option.okay{border-color:#d2bd57;color:#806d19}
+.review-option.never{border-color:#c66a67;color:#9a3c39}
+.review-option.loved.selected{background:#e4f0e5}
+.review-option.okay.selected{background:#f5edc9}
+.review-option.never.selected{background:#f3dddd}
+.review-option:hover{transform:translateY(-1px)}
+.review-saved{min-height:16px;margin:10px 0 0;font-size:11px;font-weight:700;opacity:.65}
+.mystery-section{padding:30px 0 82px;background:var(--cream)}
+.mystery-card{border:1px solid var(--line);padding:34px;display:grid;grid-template-columns:1fr minmax(300px,430px) auto;gap:28px;align-items:center;background:rgba(232,239,109,.13)}
+.mystery-heading{display:flex;gap:18px;align-items:flex-start}
+.mystery-heading .section-number{margin:4px 0 0;font-size:10px;font-weight:800;letter-spacing:.1em}
+.mystery-heading h2{font-size:clamp(38px,4vw,62px);margin:7px 0 5px}
+.mystery-heading p{margin:0;max-width:430px;font-size:14px;line-height:1.5;opacity:.68}
+.mystery-result{min-height:122px;border-left:1px solid var(--green);padding:5px 0 5px 22px;display:flex;flex-direction:column;justify-content:center}
+.mystery-label{font-size:9px;font-weight:800;letter-spacing:.14em;opacity:.6}
+#mystery-challenge{font-size:20px;line-height:1.15;margin:8px 0}
+#mystery-detail{font-size:12px;line-height:1.45;opacity:.62}
+.mystery-button{white-space:nowrap;margin:0}
+@media(max-width:900px){.mystery-card{grid-template-columns:1fr}.mystery-result{border-left:0;border-top:1px solid var(--green);padding:20px 0 0}.mystery-button{justify-self:start}}
+@media(max-width:640px){.cooked-plate{padding-top:18px}.review-options{display:grid;grid-template-columns:1fr}.review-option{justify-content:center}.mystery-card{padding:24px}.mystery-heading{gap:10px}}
+
+/* Interactive review + mystery CTAs */
+.review-feedback{min-height:18px;margin:10px 0 0;font-size:13px;font-weight:800;line-height:1.4}
+.review-feedback.loved{color:#35633e}.review-feedback.okay{color:#806d19}.review-feedback.never{color:#9a3c39}
+.review-save-prompt{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.review-save-prompt strong{display:block;font-size:12px;margin-bottom:9px}
+.review-save-choice{display:flex;gap:8px}.review-save-button{border:1px solid var(--green);background:transparent;color:var(--green);border-radius:999px;padding:8px 14px;font-size:11px;font-weight:800;cursor:pointer}.review-save-button.yes{background:var(--green);color:var(--lime)}
+
+.mystery-go-recipe{border:1px solid var(--green);background:var(--lime);color:var(--green);border-radius:999px;padding:13px 18px;text-transform:uppercase;font-weight:800;font-size:11px;cursor:pointer;transition:.18s ease}.mystery-go-recipe:hover{transform:translateY(-1px)}
+.mystery-complete:disabled{opacity:.45;cursor:not-allowed;transform:none}.mystery-complete:disabled:hover{transform:none}
+.challenge-button{border:1px solid var(--green);background:transparent;color:var(--green);border-radius:999px;padding:12px 18px;text-transform:uppercase;font-weight:800;font-size:11px;cursor:pointer}.challenge-button.is-selected{background:var(--green);color:var(--lime)}.challenge-button:disabled{opacity:.5;cursor:not-allowed}
+.mystery-badge{display:none!important}
+.recipe-achievement-badge{position:absolute;left:14px;bottom:14px;z-index:3;display:flex;align-items:center;gap:8px;min-width:145px;max-width:72%;padding:9px 11px 8px;background:rgba(250,249,232,.96);color:var(--green);border:1px solid var(--green);box-shadow:0 2px 0 rgba(31,61,25,.12);transform:rotate(-3deg);text-transform:uppercase}
+.recipe-achievement-badge::after{content:'';position:absolute;inset:3px;border:1px dashed rgba(31,61,25,.42);pointer-events:none}
+.badge-mark{position:relative;z-index:1;display:grid;place-items:center;width:29px;height:29px;flex:0 0 29px;border:1px solid var(--green);border-radius:50%;font-size:15px;line-height:1}
+.badge-copy{position:relative;z-index:1;display:flex;flex-direction:column;min-width:0}
+.badge-copy small{font-size:7px;line-height:1.1;font-weight:900;letter-spacing:.12em;opacity:.62}
+.badge-copy b{font-size:10px;line-height:1.15;font-weight:900;letter-spacing:.045em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.card:hover .recipe-achievement-badge{transform:rotate(0deg) translateY(-2px)}
+
+
+.mystery-actions{display:flex;flex-direction:column;gap:10px;align-items:stretch}.mystery-complete{border:1px solid var(--green);background:transparent;color:var(--green);border-radius:999px;padding:13px 18px;text-transform:uppercase;font-weight:800;font-size:11px;cursor:pointer}.mystery-complete:hover{transform:translateY(-1px)}
+#mystery-challenge,#mystery-detail{transition:opacity .15s ease}
