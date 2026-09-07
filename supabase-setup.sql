@@ -26,3 +26,52 @@ on public.saved_recipes for delete to authenticated
 using ((select auth.uid()) = user_id);
 
 grant select, insert, delete on public.saved_recipes to authenticated;
+
+
+-- =========================
+-- USER CREATED RECIPES
+-- =========================
+
+create table if not exists public.user_recipes (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    recipe_name text not null,
+    ingredients jsonb not null,
+    cooking_time text not null,
+    cuisine text not null,
+    meal_type text not null,
+    instructions text not null,
+    created_at timestamptz not null default now()
+);
+
+-- Enable Row Level Security
+alter table public.user_recipes enable row level security;
+
+-- Users can view recipes
+drop policy if exists "Users can view user recipes" on public.user_recipes;
+
+create policy "Users can view user recipes"
+on public.user_recipes
+for select
+to authenticated
+using (true);
+
+-- Users can add their own recipes
+drop policy if exists "Users can add their own recipes" on public.user_recipes;
+
+create policy "Users can add their own recipes"
+on public.user_recipes
+for insert
+to authenticated
+with check ((select auth.uid()) = user_id);
+
+-- Users can delete their own recipes
+drop policy if exists "Users can delete their own recipes" on public.user_recipes;
+
+create policy "Users can delete their own recipes"
+on public.user_recipes
+for delete
+to authenticated
+using ((select auth.uid()) = user_id);
+
+grant select, insert, delete on public.user_recipes to authenticated;
