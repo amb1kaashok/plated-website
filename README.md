@@ -6,7 +6,7 @@ This is the framework-free version of the recipe matching app. It uses only:
 - `style.css` for appearance and responsive layouts
 - `script.js` for database loading, ingredient matching, filtering, cards, favourites and recipe details
 - `auth.js` for the browser-safe Supabase connection
-- `recipes.json` as the local recipe database
+- `recipes-with-nutrition.json` as the local recipe database used by the website
 - `supabase-setup.sql` for protected saved recipes, community recipes and recipe images
 - `supabase/functions/suggest-substitution` for secure Gemini-powered ingredient substitutions
 - `AI-SETUP.md` for the one-time Gemini and Supabase deployment steps
@@ -40,6 +40,10 @@ match percentage = matched ingredients / total recipe ingredients × 100
 Recipes are sorted by match percentage, then by the number of missing ingredients, and finally by name.
 
 Recipe data is provided by [TheMealDB](https://www.themealdb.com/).
+
+## Nutrition at a Glance
+
+Every local recipe includes estimated protein, carbohydrates, fat, fibre and sugar per serving. Users can see these values in the recipe window or search by minimum protein, carbohydrate and fibre targets from the home page. The estimates were calculated from USDA FoodData Central SR Legacy reference data and are intended as a quick guide rather than medical advice.
 
 ## Enable accounts and cloud-saved recipes
 

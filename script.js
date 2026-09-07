@@ -1,6 +1,7 @@
 // Application state
 const isResultsPage = document.body.dataset.page === 'results';
 const submittedSearch = JSON.parse(sessionStorage.getItem('plated-search') || 'null');
+const nutritionSearch = JSON.parse(sessionStorage.getItem('plated-nutrition-search') || 'null');
 let recipes = [];
 let ingredients = isResultsPage ? (submittedSearch?.ingredients || []) : [];
 let favourites = [];
@@ -181,7 +182,7 @@ function ingredientMatches(available, required) {
 
 async function loadDatabase() {
   try {
-    const response = await fetch('recipes.json');
+    const response = await fetch('recipes-with-nutrition.json');
     if (!response.ok) throw new Error('Database could not be loaded');
     const database = await response.json();
     let communityRecipes = [];
@@ -218,7 +219,7 @@ async function loadDatabase() {
     if (elements.category) fillSelect(elements.category, recipes.map(recipe => recipe.category));
     if (elements.area) fillSelect(elements.area, recipes.map(recipe => recipe.area));
     if (isResultsPage) {
-      if (!submittedSearch && sessionStorage.getItem('plated-saved-only') !== 'true') {
+      if (!submittedSearch && !nutritionSearch && sessionStorage.getItem('plated-saved-only') !== 'true') {
         window.location.replace('index.html#finder');
         return;
       }
@@ -260,6 +261,18 @@ function renderChips() {
 
 function getRankedRecipes() {
   const available = new Set(ingredients.map(normalize));
+  if (nutritionSearch && !savedOnly) {
+    return recipes
+      .filter(recipe => {
+        const nutrition = recipe.nutritionPerServing;
+        if (!nutrition) return false;
+        return (nutritionSearch.protein === null || nutrition.protein >= nutritionSearch.protein)
+          && (nutritionSearch.carbs === null || nutrition.carbs >= nutritionSearch.carbs)
+          && (nutritionSearch.fibre === null || nutrition.fiber >= nutritionSearch.fibre);
+      })
+      .map(recipe => ({ ...recipe, matched: recipe.ingredients || [], missing: [], score: 100 }))
+      .sort((a, b) => b.nutritionPerServing.protein - a.nutritionPerServing.protein || a.name.localeCompare(b.name));
+  }
   return recipes
     .filter(recipe => elements.category.value === 'All' || recipe.category === elements.category.value)
     .filter(recipe => elements.area.value === 'All' || recipe.area === elements.area.value)
@@ -277,7 +290,9 @@ function showResults(shouldScroll = true) {
   elements.results.hidden = false;
   const ranked = getRankedRecipes();
   const visibleCount = Math.min(ranked.length, 15);
-  elements.title.textContent = savedOnly ? 'Saved recipes' : `${visibleCount} recipes worth trying`;
+  elements.title.textContent = nutritionSearch && !savedOnly
+    ? `${visibleCount} recipes matching your nutrition goals`
+    : savedOnly ? 'Saved recipes' : `${visibleCount} recipes worth trying`;
   elements.grid.innerHTML = '';
   elements.empty.hidden = ranked.length !== 0;
   ranked.slice(0, 15).forEach(recipe => elements.grid.append(createRecipeCard(recipe)));
@@ -289,9 +304,13 @@ function createRecipeCard(recipe) {
   const isFavourite = favourites.includes(recipe.id);
   const isCommunity = Boolean(recipe.isCommunity);
   const mysteryBadge = isCommunity ? null : getMysteryBadgeForRecipe(recipe.id);
+  const isNutritionResult = Boolean(nutritionSearch && !savedOnly && recipe.nutritionPerServing);
   const badgeMarkup = mysteryBadge ? `<span class="recipe-achievement-badge" title="Mystery Challenge badge: ${escapeHtml(mysteryBadge.name)}"><span class="badge-mark" aria-hidden="true">✦</span><span class="badge-copy"><small>Mystery achievement</small><b>${escapeHtml(mysteryBadge.name)}</b></span></span>` : '';
   const heartButton = isCommunity ? '' : `<button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button>`;
-  card.innerHTML = `<div class="photo ${recipe.image ? '' : 'no-image'}">${recipe.image ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">` : ''}${badgeMarkup}<span class="score ${recipe.score === 100 ? 'done' : ''}">${recipe.score}% match</span>${heartButton}</div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p><b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing</p>${recipe.publisher ? `<p>Published by ${escapeHtml(recipe.publisher)}</p>` : ''}<button class="view">View recipe</button></div>`;
+  const summary = isNutritionResult
+    ? `<b>${recipe.nutritionPerServing.protein}g</b> protein · <b>${recipe.nutritionPerServing.carbs}g</b> carbs · <b>${recipe.nutritionPerServing.fiber}g</b> fibre`
+    : `<b>${recipe.matched.length}</b> ingredients ready · <b>${recipe.missing.length}</b> missing`;
+  card.innerHTML = `<div class="photo ${recipe.image ? '' : 'no-image'}">${recipe.image ? `<img src="${recipe.image}" alt="${escapeHtml(recipe.name)}" loading="lazy">` : ''}${badgeMarkup}<span class="score ${recipe.score === 100 ? 'done' : ''}">${isNutritionResult ? 'Nutrition match' : `${recipe.score}% match`}</span>${heartButton}</div><div class="card-body"><span class="meta">${escapeHtml(recipe.area || 'World')} · ${escapeHtml(recipe.category || 'Recipe')}</span><h3>${escapeHtml(recipe.name)}</h3><div class="progress"><span style="width:${recipe.score}%"></span></div><p>${summary}</p>${recipe.publisher ? `<p>Published by ${escapeHtml(recipe.publisher)}</p>` : ''}<button class="view">View recipe</button></div>`;
   if (!isCommunity) {
   card.querySelector('.heart').addEventListener('click', async () => {
     if (await toggleFavourite(recipe.id)) showResults(false);
@@ -656,7 +675,26 @@ function openRecipe(recipe) {
   cookedButton.setAttribute('aria-pressed', cooked ? 'true' : 'false');
   renderCookedPlate(recipe);
   document.querySelector('#modal-save').textContent = favourites.includes(recipe.id) ? 'Remove from saved' : 'Save this recipe';
+  renderNutrition(recipe);
   elements.backdrop.hidden = false; document.body.style.overflow = 'hidden';
+}
+
+function renderNutrition(recipe) {
+  let nutritionBox = document.querySelector('#modal-nutrition');
+  if (!nutritionBox) {
+    nutritionBox = document.createElement('section');
+    nutritionBox.id = 'modal-nutrition';
+    nutritionBox.className = 'nutrition-card';
+    document.querySelector('.modal-content')?.append(nutritionBox);
+  }
+  const nutrition = recipe.nutritionPerServing;
+  if (!nutrition) {
+    nutritionBox.hidden = true;
+    nutritionBox.innerHTML = '';
+    return;
+  }
+  nutritionBox.hidden = false;
+  nutritionBox.innerHTML = `<div class="nutrition-header"><div><span class="nutrition-kicker">PER SERVING</span><h3>Nutrition at a Glance</h3></div><span class="nutrition-estimate">Estimated values</span></div><div class="nutrition-grid"><div class="nutrition-item"><strong>${nutrition.protein}g</strong><span>Protein</span></div><div class="nutrition-item"><strong>${nutrition.carbs}g</strong><span>Carbohydrates</span></div><div class="nutrition-item"><strong>${nutrition.fat}g</strong><span>Fat</span></div><div class="nutrition-item"><strong>${nutrition.fiber}g</strong><span>Fibre</span></div><div class="nutrition-item"><strong>${nutrition.sugar}g</strong><span>Sugar</span></div></div>`;
 }
 
 function closeRecipe() { elements.backdrop.hidden = true; document.body.style.overflow = ''; selectedRecipe = null; }
@@ -904,6 +942,27 @@ if (!isResultsPage) {
     }
     message.textContent = '';
     sessionStorage.setItem('plated-search', JSON.stringify({ ingredients, category: elements.category.value, area: elements.area.value, minimum: elements.minimum.value }));
+    sessionStorage.removeItem('plated-nutrition-search');
+    sessionStorage.removeItem('plated-saved-only');
+    window.location.href = 'results.html';
+  });
+  document.querySelector('#nutrition-find-button')?.addEventListener('click', () => {
+    const proteinValue = document.querySelector('#protein-target').value;
+    const carbsValue = document.querySelector('#carbs-target').value;
+    const fibreValue = document.querySelector('#fibre-target').value;
+    const message = document.querySelector('#nutrition-finder-message');
+    if (!proteinValue && !carbsValue && !fibreValue) {
+      message.textContent = 'Enter at least one nutrition target.';
+      document.querySelector('#protein-target').focus();
+      return;
+    }
+    message.textContent = '';
+    sessionStorage.setItem('plated-nutrition-search', JSON.stringify({
+      protein: proteinValue ? Number(proteinValue) : null,
+      carbs: carbsValue ? Number(carbsValue) : null,
+      fibre: fibreValue ? Number(fibreValue) : null
+    }));
+    sessionStorage.removeItem('plated-search');
     sessionStorage.removeItem('plated-saved-only');
     window.location.href = 'results.html';
   });
@@ -912,6 +971,7 @@ elements.saved.addEventListener('click', () => {
   if (!currentUser) { openAuthModal('login', 'Log in to view your saved recipes.'); return; }
   if (!isResultsPage) {
     sessionStorage.setItem('plated-saved-only', 'true');
+    sessionStorage.removeItem('plated-nutrition-search');
     window.location.href = 'results.html';
     return;
   }

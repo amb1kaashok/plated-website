@@ -32,6 +32,16 @@
         <button class="primary finder-submit" id="find-button"><img src="assets/chef-hat.svg" alt=""> Find recipes now</button><p class="finder-message" id="finder-message" role="alert"></p>
       </section>
     </div></section>
+    <section class="nutrition-finder-section" id="nutrition-finder"><div class="shell">
+      <div class="nutrition-finder-heading"><p class="section-number">NUTRITION</p><div><h2>Find recipes by nutrition</h2><p>Set the minimum amount you want per serving. Leave any field blank to ignore it.</p></div></div>
+      <div class="nutrition-finder" aria-label="Nutrition recipe finder">
+        <label for="protein-target">Protein<div class="nutrition-input"><input id="protein-target" type="number" min="0" step="1" placeholder="20"><span>g</span></div></label>
+        <label for="carbs-target">Carbohydrates<div class="nutrition-input"><input id="carbs-target" type="number" min="0" step="1" placeholder="30"><span>g</span></div></label>
+        <label for="fibre-target">Fibre<div class="nutrition-input"><input id="fibre-target" type="number" min="0" step="1" placeholder="5"><span>g</span></div></label>
+      </div>
+      <button class="primary nutrition-find-submit" id="nutrition-find-button" type="button">Find nutrient-rich recipes</button>
+      <p class="nutrition-finder-message" id="nutrition-finder-message" role="alert"></p>
+    </div></section>
     <section class="mystery-section" id="mystery"><div class="shell"><div class="mystery-card"><div class="mystery-heading"><div><span class="mystery-kicker">NOT SURE WHAT TO COOK?</span><h2>Mystery dish</h2><p>Get one small cooking challenge and see where the ingredients you already have take you.</p></div></div><div class="mystery-result" id="mystery-result" aria-live="polite"><span class="mystery-label">YOUR CHALLENGE</span><strong id="mystery-challenge">Tap below to reveal one.</strong><span id="mystery-detail">Every challenge stays focused on finding and cooking a recipe in PLATED.</span></div><div class="mystery-actions"><button class="primary mystery-button" id="mystery-button" type="button">Reveal a challenge</button><button class="mystery-go-recipe" id="mystery-go-recipe" type="button" hidden>Go to recipe</button><button class="mystery-complete" id="mystery-complete" type="button" hidden>I completed it</button></div></div></div></section>
     <section class="how" id="how"><div class="shell"><h2>From random ingredients to dinner</h2><div class="steps"><article><span>01</span><h3>Add what you have</h3><p>Type the ingredients already in your kitchen.</p></article><article><span>02</span><h3>Choose what fits</h3><p>Narrow by recipe type, cuisine, and match level.</p></article><article><span>03</span><h3>Cook your best match</h3><p>See what is ready, what is missing, and every cooking step.</p></article></div></div></section>
   <section class="add-recipe-section" id="add-recipe">
