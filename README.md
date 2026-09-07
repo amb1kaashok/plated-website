@@ -8,8 +8,6 @@ This is the framework-free version of the recipe matching app. It uses only:
 - `auth.js` for the browser-safe Supabase connection
 - `recipes.json` as the local recipe database
 - `supabase-setup.sql` for the protected cloud favourites table
-- `supabase/functions/suggest-substitution` for secure Gemini-powered ingredient substitutions
-- `AI-SETUP.md` for the one-time Gemini and Supabase deployment steps
 
 ## Run it in VS Code
 
@@ -51,7 +49,3 @@ Recipe data is provided by [TheMealDB](https://www.themealdb.com/).
 6. Keep email confirmation enabled. New users will receive a confirmation email before their first login.
 
 The app stores only the logged-in user's recipe IDs in Supabase. Row Level Security policies in `supabase-setup.sql` prevent users from viewing or changing another user's saved recipes. Never replace the publishable key in `auth.js` with a secret or service-role key.
-
-## Enable AI ingredient substitutions
-
-Follow `AI-SETUP.md` to create a Gemini API key, store it as a private Supabase secret and deploy the Edge Function. Never put the Gemini API key in browser code or commit it to GitHub.

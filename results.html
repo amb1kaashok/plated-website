@@ -14,6 +14,41 @@
     <section class="results" id="results" aria-live="polite"><div class="shell"><div class="results-heading"><h1 id="results-title">Recipes worth trying</h1><p>Your best matches, ranked on what you have.</p></div><div class="grid" id="recipe-grid"></div><div class="empty" id="empty-state" hidden><h3>No close matches yet</h3><p>Add a few pantry basics or lower the minimum match.</p><a href="index.html#finder">Change your search</a></div></div></section>
   </main>
   <footer class="footer"><div class="shell footer-inner"><a href="index.html"><img src="assets/plated-logo-dark.svg" alt="Plated"></a><p>Recipe data provided by <a href="https://www.themealdb.com/" target="_blank" rel="noreferrer">TheMealDB</a>.</p></div></footer>
-  <div class="backdrop" id="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="close" id="close-modal" aria-label="Close recipe">×</button><div class="recipe-visual"><img class="modal-photo" id="modal-photo" alt=""><span class="modal-match-pill" id="modal-match"></span></div><div class="modal-content"><div class="recipe-title-row"><div><span class="meta" id="modal-meta"></span><h2 id="modal-title"></h2></div><span id="modal-missing" class="missing-copy"></span></div><div class="columns"><div><h3>Ingredients</h3><ul id="modal-ingredients"></ul><section class="ai-substitution" id="ai-substitution-panel" aria-live="polite" hidden><div class="ai-substitution-heading"><span>AI substitution</span><button id="close-substitution" type="button" aria-label="Close substitution suggestion">×</button></div><div id="ai-substitution-result"></div><p class="ai-warning">AI suggestions may be inaccurate. Always check ingredient labels, dietary requirements and allergen information before cooking.</p></section></div><div><h3>Method</h3><div class="instructions" id="modal-instructions"></div></div></div><div class="modal-actions"><button class="primary" id="modal-save"></button><a id="modal-source" target="_blank" rel="noreferrer">Original recipe <img src="assets/link-icon.svg" alt=""></a></div></div></section></div>
+  <div class="backdrop" id="modal-backdrop" hidden><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="close" id="close-modal" aria-label="Close recipe">×</button><div class="recipe-visual"><img class="modal-photo" id="modal-photo" alt=""><span class="modal-match-pill" id="modal-match"></span></div><div class="modal-content"><div class="recipe-title-row"><div><span class="meta" id="modal-meta"></span><h2 id="modal-title"></h2></div><span id="modal-missing" class="missing-copy"></span></div><div class="columns"><div><h3>Ingredients</h3><ul id="modal-ingredients"></ul></div><div><h3>Method</h3><div class="instructions" id="modal-instructions"></div></div></div><div class="modal-actions"><button class="primary" id="modal-save"></button><a id="modal-source" target="_blank" rel="noreferrer">Original recipe <img src="assets/link-icon.svg" alt=""></a></div></div></section></div>
   <div class="backdrop auth-backdrop" id="auth-backdrop" hidden><section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button class="close auth-close" id="close-auth" aria-label="Close account window">×</button><img class="auth-logo" src="assets/plated-logo-dark.svg" alt="Plated"><h2 id="auth-title">Welcome back</h2><p class="auth-intro" id="auth-intro">Log in to view all your saved recipes.</p><div class="auth-tabs" role="tablist"><button class="active" id="login-tab" role="tab">Log in</button><button id="signup-tab" role="tab">Create account</button></div><form id="auth-form"><label id="full-name-row" hidden>Full name<input id="auth-name" type="text" autocomplete="name" placeholder="Your full name"></label><label>Email address<input id="auth-email" type="email" autocomplete="email" required placeholder="name@email.com"></label><label>Password<input id="auth-password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"></label><label id="confirm-password-row" hidden>Confirm password<input id="auth-confirm-password" type="password" autocomplete="new-password" minlength="8" placeholder="Enter your password again"></label><label class="remember-row" id="remember-row"><input type="checkbox" checked><span>Remember me</span></label><p class="auth-message" id="auth-message" role="status"></p><button class="primary auth-submit" id="auth-submit" type="submit">Log in</button></form><p class="auth-switch" id="auth-switch">Don’t have an account? <button type="button" data-mode="signup">Create account</button></p></section></div>
+<!-- Community Recipe Modal -->
+<div class="backdrop" id="community-recipe-backdrop" hidden>
+    <section class="community-recipe-modal" role="dialog" aria-modal="true">
+
+        <button
+            type="button"
+            class="community-recipe-close"
+            id="community-recipe-close"
+        >
+            ×
+        </button>
+
+        <p class="section-number">COMMUNITY RECIPE</p>
+
+        <h2 id="community-recipe-title"></h2>
+
+        <div class="community-recipe-modal-meta" id="community-recipe-meta">
+        </div>
+
+        <div class="community-recipe-details">
+
+            <div>
+                <h3>INGREDIENTS</h3>
+                <div id="community-recipe-ingredients"></div>
+            </div>
+
+            <div>
+                <h3>INSTRUCTIONS</h3>
+                <p id="community-recipe-instructions"></p>
+            </div>
+
+        </div>
+
+    </section>
+</div>
 </body></html>
