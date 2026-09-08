@@ -17,10 +17,10 @@ npx supabase link --project-ref uqmbsstsehawfsfsgzdd
 npx supabase secrets set GEMINI_API_KEY=YOUR_KEY_HERE
 ```
 
-The function defaults to `gemini-3.8-flash`. To use a different compatible model without editing code:
+The function defaults to `gemini-3.1-flash-lite` and automatically retries temporary overloads before falling back to another Flash model. To use a different compatible preferred model without editing code:
 
 ```text
-npx supabase secrets set GEMINI_MODEL=gemini-3.8-flash
+npx supabase secrets set GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 ## 3. Deploy the function

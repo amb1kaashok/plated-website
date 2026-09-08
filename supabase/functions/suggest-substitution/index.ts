@@ -84,31 +84,43 @@ Rules:
 - Keep each field concise and useful to a home cook.
 - The warning must tell the user to check labels and cross-contamination.`
 
-  const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash'
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
+  const preferredModel = Deno.env.get('GEMINI_MODEL') || 'gemini-3.1-flash-lite'
+  const models = [...new Set([preferredModel, 'gemini-3.1-flash-lite', 'gemini-3.5-flash'])]
+  const requestBody = JSON.stringify({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: responseSchema,
+      thinkingConfig: { thinkingLevel: 'low' },
+    },
+  })
 
-  let geminiResponse: Response
-  try {
-    geminiResponse = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseJsonSchema: responseSchema,
-          thinkingConfig: { thinkingLevel: 'low' },
-        },
-      }),
-    })
-  } catch {
-    return json({ error: 'The AI service could not be reached.' }, 502)
+  let geminiResponse: Response | null = null
+  for (const model of models) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        geminiResponse = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: requestBody,
+        })
+      } catch {
+        geminiResponse = null
+      }
+
+      if (geminiResponse?.ok) break
+      const status = geminiResponse?.status || 0
+      const details = geminiResponse ? await geminiResponse.text() : 'Network error'
+      console.error(`Gemini API error (${model}, attempt ${attempt + 1}):`, status, details.slice(0, 500))
+      if (![0, 429, 503].includes(status)) break
+      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 700))
+    }
+    if (geminiResponse?.ok) break
   }
 
-  if (!geminiResponse.ok) {
-    const details = await geminiResponse.text()
-    console.error('Gemini API error:', geminiResponse.status, details.slice(0, 500))
-    return json({ error: geminiResponse.status === 429 ? 'The free AI limit is busy. Try again shortly.' : 'The AI service rejected the request.' }, 502)
+  if (!geminiResponse?.ok) {
+    return json({ error: 'The AI service is temporarily busy. Please try again.' }, 503)
   }
 
   const gemini = await geminiResponse.json()
