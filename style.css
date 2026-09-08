@@ -629,5 +629,8 @@
 /* Align the nutrition search heading with the shared page margin. */
 .nutrition-finder-heading{display:block}.nutrition-finder-heading>div{width:100%}.nutrition-finder-heading p:last-child{margin-top:22px}
 
+/* Keep the large desktop hero headline clear of the header edge. */
+@media(min-width:901px) and (min-height:901px){.hero h1{top:32px}}
+
 /* Circular allergen alerts */
 .recipe-allergen-warning{display:flex;width:100%;align-items:center;gap:11px;border:0;border-radius:12px;background:#f3c5b8;color:#6d241b;padding:11px 12px;margin:0 0 16px;text-align:left;cursor:pointer}.allergen-alert-icon{display:inline-grid;width:25px;height:25px;flex:0 0 25px;place-items:center;border:2px solid currentColor;border-radius:50%;font-size:15px;font-weight:900;line-height:1}.allergen-alert-copy{display:grid;gap:1px}.allergen-alert-copy strong{font-size:11px;letter-spacing:.05em}.allergen-alert-copy>span{font-size:11px}.allergen-alert-copy small{font-size:9px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;opacity:.75}.recipe-allergen-warning:hover{background:#edb5a6}.ingredient-alert-icon{color:#a23b2f!important;margin-top:1px}.columns li.allergen-conflict>.ingredient-alert-icon{font-weight:900}
