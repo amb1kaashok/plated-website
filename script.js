@@ -1485,7 +1485,8 @@ async function displayCommunityRecipes() {
     const { data, error } = await supabaseClient
         .from('user_recipes')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(6);
 
     recipesGrid.innerHTML = '';
 
@@ -1516,23 +1517,25 @@ async function displayCommunityRecipes() {
         return;
     }
 
-    communityRecipesCache.forEach((recipe) => {
+    communityRecipesCache.slice(0, 6).forEach((recipe) => {
         const card = document.createElement('article');
-        card.className = 'community-recipe-card';
+        card.className = 'card community-recipe-card';
         const isOwner = currentUser && String(recipe.user_id) === String(currentUser.id);
         const isSaved = favourites.includes(String(recipe.id));
+        const ingredientCount = (recipe.ingredients || []).length;
         card.innerHTML = `
-            ${recipe.image ? `<img src="${escapeHtml(recipe.image)}" class="community-recipe-image" alt="${escapeHtml(recipe.name)}">` : ''}
-            <h3>${escapeHtml(recipe.name)}</h3>
-            <div class="community-recipe-meta">
-                <span>${escapeHtml(recipe.cuisine || 'Other')}</span>
-                <span>${escapeHtml(recipe.mealType || 'Recipe')}</span>
-                <span>${escapeHtml(recipe.cookingTime || '')}</span>
+            <div class="photo ${recipe.image ? '' : 'no-image'}">
+                ${recipe.image ? `<img src="${escapeHtml(recipe.image)}" alt="${escapeHtml(recipe.name)}" loading="lazy">` : ''}
+                <span class="score">Community</span>
+                <button type="button" class="heart save-community-recipe-button ${isSaved ? 'saved' : ''}" data-recipe-id="${recipe.id}" aria-label="${isSaved ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isSaved ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button>
             </div>
-            <p>${(recipe.ingredients || []).length} ingredients${recipe.publisher ? ` · Published by ${escapeHtml(recipe.publisher)}` : ''}</p>
-            <button type="button" class="view-recipe-button" data-recipe-id="${recipe.id}">View recipe</button>
-            <button type="button" class="save-community-recipe-button" data-recipe-id="${recipe.id}">${isSaved ? 'Saved ✓' : 'Save recipe'}</button>
-            ${isOwner ? `<div class="community-recipe-actions"><button type="button" class="edit-recipe-button" data-recipe-id="${recipe.id}">Edit</button><button type="button" class="delete-recipe-button" data-recipe-id="${recipe.id}">Delete</button></div>` : ''}
+            <div class="card-body">
+                <span class="meta">${escapeHtml(recipe.cuisine || 'World')} · ${escapeHtml(recipe.mealType || 'Recipe')}</span>
+                <h3>${escapeHtml(recipe.name)}</h3>
+                <p><b>${ingredientCount}</b> ingredients${recipe.cookingTime ? ` · ${escapeHtml(recipe.cookingTime)}` : ''}${recipe.publisher ? `<br>Published by ${escapeHtml(recipe.publisher)}` : ''}</p>
+                <button type="button" class="view view-recipe-button" data-recipe-id="${recipe.id}">View recipe</button>
+                ${isOwner ? `<div class="community-recipe-actions"><button type="button" class="edit-recipe-button" data-recipe-id="${recipe.id}">Edit</button><button type="button" class="delete-recipe-button" data-recipe-id="${recipe.id}">Delete</button></div>` : ''}
+            </div>
         `;
         recipesGrid.appendChild(card);
     });
@@ -1809,6 +1812,10 @@ document.addEventListener('click', async (event) => {
     }
 
     if (await toggleFavourite(recipeId)) {
-        button.textContent = favourites.includes(recipeId) ? 'Saved ✓' : 'Save recipe';
+        const isSaved = favourites.includes(recipeId);
+        button.classList.toggle('saved', isSaved);
+        button.setAttribute('aria-label', isSaved ? 'Remove recipe from saved' : 'Save recipe');
+        const icon = button.querySelector('img');
+        if (icon) icon.src = `assets/${isSaved ? 'heart-selected.svg' : 'heart-unselected.svg'}`;
     }
 });

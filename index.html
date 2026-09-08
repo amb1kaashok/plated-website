@@ -6,8 +6,8 @@
   <meta property="og:title" content="Plated — What’s cooking today?"><meta property="og:description" content="Turn the ingredients you have into something worth plating."><meta property="og:image" content="og.png">
   <title>Plated — What’s cooking today?</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Koulen&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css?v=5">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="auth.js" defer></script><script src="script.js?v=5" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Koulen&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css?v=6">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script><script src="auth.js" defer></script><script src="script.js?v=6" defer></script>
   <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
@@ -44,10 +44,22 @@
     </div></section>
     <section class="mystery-section" id="mystery"><div class="shell"><div class="mystery-card"><div class="mystery-heading"><div><span class="mystery-kicker">NOT SURE WHAT TO COOK?</span><h2>Mystery dish</h2><p>Get one small cooking challenge and see where the ingredients you already have take you.</p></div></div><div class="mystery-result" id="mystery-result" aria-live="polite"><span class="mystery-label">YOUR CHALLENGE</span><strong id="mystery-challenge">Tap below to reveal one.</strong><span id="mystery-detail">Every challenge stays focused on finding and cooking a recipe in PLATED.</span></div><div class="mystery-actions"><button class="primary mystery-button" id="mystery-button" type="button">Reveal a challenge</button><button class="mystery-go-recipe" id="mystery-go-recipe" type="button" hidden>Go to recipe</button><button class="mystery-complete" id="mystery-complete" type="button" hidden>I completed it</button></div></div></div></section>
     <section class="how" id="how"><div class="shell"><h2>From random ingredients to dinner</h2><div class="steps"><article><span>01</span><h3>Add what you have</h3><p>Type the ingredients already in your kitchen.</p></article><article><span>02</span><h3>Choose what fits</h3><p>Narrow by recipe type, cuisine, and match level.</p></article><article><span>03</span><h3>Cook your best match</h3><p>See what is ready, what is missing, and every cooking step.</p></article></div></div></section>
+  <section class="community-recipes-section" id="community-recipes">
+    <div class="shell">
+      <div class="community-recipes-heading">
+        <p class="section-number">02</p>
+        <h2>Community Recipes</h2>
+        <p>Discover the latest recipes shared by the Plated community.</p>
+      </div>
+      <div class="community-recipes-grid" id="community-recipes-grid">
+        <!-- The six most recent user-created recipes will appear here -->
+      </div>
+    </div>
+  </section>
   <section class="add-recipe-section" id="add-recipe">
     <div class="shell">
         <div class="add-recipe-heading">
-            <p class="section-number">02</p>
+            <p class="section-number">03</p>
             <h2>Add your recipe</h2>
             <p>Share a recipe with the Plated community.</p>
         </div>
@@ -165,21 +177,6 @@
             </button>
 
         </form>
-    </div>
-</section>
-  <section class="community-recipes-section" id="community-recipes">
-    <div class="shell">
-
-        <div class="community-recipes-heading">
-            <p class="section-number">03</p>
-            <h2>Community Recipes</h2>
-            <p>Discover recipes shared by the Plated community.</p>
-        </div>
-
-        <div class="community-recipes-grid" id="community-recipes-grid">
-            <!-- User-created recipes will appear here -->
-        </div>
-
     </div>
 </section>
 </main>
