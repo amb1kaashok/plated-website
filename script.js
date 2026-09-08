@@ -245,7 +245,12 @@ function getRecipeSafety(recipe) {
 function recipeMatchesProfile(recipe) {
   if (!currentUser || !userPreferences.onboardingComplete || !preferenceFilterEnabled) return true;
   const safety = getRecipeSafety(recipe);
-  return !safety.conflicts.length && !safety.allergenConflicts.length && !safety.excludedIngredients.length;
+  return !safety.conflicts.length && !safety.excludedIngredients.length;
+}
+
+function isDeclaredAllergenIngredient(item) {
+  if (!currentUser || !userPreferences.onboardingComplete) return false;
+  return getIngredientAllergens(item.name || item.key).some(allergen => userPreferences.allergens.includes(allergen));
 }
 
 async function loadDatabase() {
@@ -348,8 +353,8 @@ function getRankedRecipes() {
     .filter(recipe => elements.area.value === 'All' || recipe.area === elements.area.value)
     .filter(recipe => !savedOnly || favourites.includes(recipe.id))
     .map(recipe => {
-      const matched = recipe.ingredients.filter(item => ingredientMatches(available, item.key));
-      const missing = recipe.ingredients.filter(item => !ingredientMatches(available, item.key));
+      const matched = recipe.ingredients.filter(item => ingredientMatches(available, item.key) || isDeclaredAllergenIngredient(item));
+      const missing = recipe.ingredients.filter(item => !ingredientMatches(available, item.key) && !isDeclaredAllergenIngredient(item));
       return { ...recipe, matched, missing, score: Math.round(matched.length / recipe.ingredients.length * 100) };
     })
     .filter(recipe => savedOnly || (recipe.matched.length && recipe.score >= Number(elements.minimum.value)))
@@ -378,7 +383,7 @@ function createRecipeCard(recipe) {
   const isNutritionResult = Boolean(nutritionSearch && !savedOnly && recipe.nutritionPerServing);
   const safety = getRecipeSafety(recipe);
   const allergenWarning = safety.detectedAllergens.length
-    ? `<div class="recipe-allergen-warning"><strong>Allergen warning</strong><span>Contains: ${safety.detectedAllergens.map(allergen => escapeHtml(allergenLabels[allergen])).join(', ')}</span></div>`
+    ? `<button type="button" class="recipe-allergen-warning"><span class="allergen-alert-icon" aria-hidden="true">!</span><span class="allergen-alert-copy"><strong>Allergen Alert!</strong><span>contains ${safety.detectedAllergens.map(allergen => escapeHtml(allergenLabels[allergen])).join(', ')}</span><small>expand to view substitution</small></span></button>`
     : '';
   const badgeMarkup = mysteryBadge ? `<span class="recipe-achievement-badge" title="Mystery Challenge badge: ${escapeHtml(mysteryBadge.name)}"><span class="badge-mark" aria-hidden="true">✦</span><span class="badge-copy"><small>Mystery achievement</small><b>${escapeHtml(mysteryBadge.name)}</b></span></span>` : '';
   const heartButton = isCommunity ? '' : `<button class="heart ${isFavourite ? 'saved' : ''}" aria-label="${isFavourite ? 'Remove recipe from saved' : 'Save recipe'}"><img src="assets/${isFavourite ? 'heart-selected.svg' : 'heart-unselected.svg'}" alt=""></button>`;
@@ -398,6 +403,10 @@ function createRecipeCard(recipe) {
     openRecipe(recipe);
   }
 });
+  card.querySelector('.recipe-allergen-warning')?.addEventListener('click', () => {
+    if (recipe.isCommunity) openCommunityRecipe(recipe);
+    else openRecipe(recipe);
+  });
   return card;
 }
 
@@ -740,7 +749,10 @@ function openRecipe(recipe) {
     const substitutionButton = !ready || conflictsWithProfile
       ? `<button class="substitute-button" type="button" data-ingredient="${escapeHtml(item.key)}">${conflictsWithProfile ? 'Find allergen-safe substitute' : 'Suggest substitute'}</button>`
       : '';
-    return `<li class="${ready ? 'ready' : ''} ${conflictsWithProfile ? 'allergen-conflict' : ''}"><span>${ready ? '✓' : '×'}</span><div class="ingredient-copy">${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small>${allergenCopy}${substitutionButton}</div></li>`;
+    const statusIcon = conflictsWithProfile
+      ? '<span class="allergen-alert-icon ingredient-alert-icon" aria-label="Declared allergen">!</span>'
+      : `<span>${ready ? '✓' : '×'}</span>`;
+    return `<li class="${ready ? 'ready' : ''} ${conflictsWithProfile ? 'allergen-conflict' : ''}">${statusIcon}<div class="ingredient-copy">${escapeHtml(item.name)}<small>${escapeHtml(item.measure || 'As needed')}</small>${allergenCopy}${substitutionButton}</div></li>`;
   }).join('');
   const steps = splitInstructions(recipe.instructions);
   document.querySelector('#modal-instructions').innerHTML = steps.map((step, index) =>
