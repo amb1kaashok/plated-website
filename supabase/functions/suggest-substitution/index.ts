@@ -25,6 +25,31 @@ function json(body: unknown, status = 200) {
   })
 }
 
+function emergencySubstitution(ingredient: string, measure: string) {
+  const key = ingredient.toLowerCase()
+  const options = [
+    { terms: ['peanut butter'], substitute: 'sunflower seed butter', note: 'Use it in the same way as peanut butter.' },
+    { terms: ['cream cheese'], substitute: 'plant-based cream cheese', note: 'Use a plain, unsweetened variety.' },
+    { terms: ['parmesan'], substitute: 'nutritional yeast', note: 'Add gradually and adjust to taste.' },
+    { terms: ['butter'], substitute: 'plant-based butter', note: 'Use a baking block for baking recipes.' },
+    { terms: ['milk'], substitute: 'unsweetened oat milk', note: 'Use a certified allergen-safe product where required.' },
+    { terms: ['egg'], substitute: 'flax egg', note: 'Mix 1 tablespoon ground flaxseed with 3 tablespoons water per egg and rest for 10 minutes.' },
+    { terms: ['soy sauce'], substitute: 'coconut aminos', note: 'Use slightly less at first because the salt level differs.' },
+    { terms: ['flour', 'wheat'], substitute: '1-to-1 gluten-free flour blend', note: 'Choose a blend intended for the same cooking or baking method.' },
+    { terms: ['cream'], substitute: 'coconut cream', note: 'Use the thick portion and adjust sweetness to suit the recipe.' },
+  ]
+  const match = options.find(option => option.terms.some(term => key.includes(term)))
+  const substitute = match?.substitute || 'a suitable allergen-safe alternative with the same cooking purpose'
+  return {
+    substitute,
+    quantity: measure || 'Use the original recipe quantity as a starting point.',
+    instructions: match?.note || 'Add gradually and adjust the texture and seasoning as needed.',
+    suitability: 'Selected as a practical backup when the live AI service is temporarily unavailable.',
+    warning: 'Check the product label and cross-contamination information against all declared allergies before cooking.',
+    fallback: true,
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
@@ -120,7 +145,8 @@ Rules:
   }
 
   if (!geminiResponse?.ok) {
-    return json({ error: 'The AI service is temporarily busy. Please try again.' }, 503)
+    console.warn('All Gemini models were unavailable; returning the presentation-safe substitution fallback.')
+    return json(emergencySubstitution(missingIngredient, measure))
   }
 
   const gemini = await geminiResponse.json()
